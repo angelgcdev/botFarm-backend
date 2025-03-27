@@ -12,11 +12,11 @@ datasource db {
 
 model usuario {
   id           Int           @id @default(autoincrement())
-  username     String
-  email        String
+  email        String        @unique
   password     String
   rol          Rol
   created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
   dispositivos dispositivo[]
 }
 
@@ -34,7 +34,7 @@ model dispositivo {
 
 model cuenta_google {
   id                   Int                 @id @default(autoincrement())
-  email                String
+  email                String              @unique
   estado               EstadoCuentaGoogle  @default(ACTIVO)
   dispositivo          dispositivo         @relation(fields: [dispositivoId], references: [id])
   dispositivoId        Int
@@ -50,7 +50,7 @@ model red_social {
 
 model cuenta_red_social {
   id                              Int                               @id @default(autoincrement())
-  email                           String
+  email                           String                            @unique
   password                        String
   username                        String?
   estado                          EstadoCuentaRedSocial             @default(ACTIVO)
