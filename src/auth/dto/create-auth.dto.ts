@@ -21,5 +21,5 @@ export class CreateAuthDto {
     message:
       'El rol deber ser uno de los siguientes valores: ADMINISTADOR, PERSONAL',
   })
-  rol: Rol;
+  role: Rol;
 }

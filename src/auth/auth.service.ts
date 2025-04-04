@@ -1,5 +1,5 @@
 import {
-  ConflictException,
+  // ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -9,7 +9,13 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { UpdateAuthDto } from './dto/update-auth.dto';
-import passport from 'passport';
+// import passport from 'passport';
+
+// Interfaz para las credenciales de usuario
+interface UserCredentials {
+  email: string;
+  password: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -19,7 +25,7 @@ export class AuthService {
   ) {}
 
   //Metodo para validar las credenciales del usuario
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser({ email, password }: UserCredentials): Promise<any> {
     //Buscar usuario en la base de datos
     const user = await this.prisma.usuario.findUnique({ where: { email } });
 

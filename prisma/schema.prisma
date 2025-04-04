@@ -14,107 +14,107 @@ model usuario {
   id           Int           @id @default(autoincrement())
   email        String        @unique
   password     String
-  rol          Rol
+  role         Rol
   created_at   DateTime      @default(now())
   updated_at   DateTime      @updatedAt
   dispositivos dispositivo[]
 }
 
 model dispositivo {
-  id            Int               @id @default(autoincrement())
-  tipo          TipoDispositivo
-  conexion      Conexion
-  estado        EstadoDispositivo @default(INACTIVO)
-  add_at        DateTime          @default(now())
-  removed_at    DateTime?
-  usuario       usuario           @relation(fields: [usuarioId], references: [id])
-  usuarioId     Int
-  cuentasGoogle cuenta_google[]
+  id             Int               @id @default(autoincrement())
+  usuario_id     Int
+  serial_number  String
+  device_type    TipoDispositivo
+  status         EstadoDispositivo @default(INACTIVO)
+  version_so     String
+  marca          String
+  connected_at   DateTime          @default(now())
+  last_activity  DateTime?
+  usuario        usuario           @relation(fields: [usuario_id], references: [id])
+  cuentas_google cuenta_google[]
 }
 
 model cuenta_google {
-  id                   Int                 @id @default(autoincrement())
-  email                String              @unique
-  estado               EstadoCuentaGoogle  @default(ACTIVO)
-  dispositivo          dispositivo         @relation(fields: [dispositivoId], references: [id])
-  dispositivoId        Int
-  cuentasRedesSociales cuenta_red_social[]
+  id                Int                 @id @default(autoincrement())
+  dispositivo_id    Int
+  email             String              @unique
+  status            EstadoCuentaGoogle  @default(ACTIVO)
+  dispositivo       dispositivo         @relation(fields: [dispositivo_id], references: [id])
+  cuenta_red_social cuenta_red_social[]
 }
 
 model red_social {
-  id                   Int                 @id @default(autoincrement())
-  nombre               String
-  descripcion          String?
-  cuentasRedesSociales cuenta_red_social[]
+  id                Int                 @id @default(autoincrement())
+  name              RedesSociales
+  cuenta_red_social cuenta_red_social[]
 }
 
 model cuenta_red_social {
-  id                              Int                               @id @default(autoincrement())
-  email                           String                            @unique
-  password                        String
-  username                        String?
-  estado                          EstadoCuentaRedSocial             @default(ACTIVO)
-  created_at                      DateTime                          @default(now())
-  cuentaGoogle                    cuenta_google                     @relation(fields: [cuentaGoogleId], references: [id])
-  cuentaGoogleId                  Int
-  redSocial                       red_social                        @relation(fields: [redSocialId], references: [id])
-  redSocialId                     Int
-  interaccionesTiktok             interaccion_programada_tiktok[]
-  interaccion_programada_facebook interaccion_programada_facebook[]
+  id                       Int                       @id @default(autoincrement())
+  red_social_id            Int
+  cuenta_google_id         Int
+  email                    String                    @unique
+  username                 String?
+  status                   EstadoCuentaRedSocial     @default(ACTIVO)
+  created_at               DateTime                  @default(now())
+  cuenta_google            cuenta_google             @relation(fields: [cuenta_google_id], references: [id])
+  red_social               red_social                @relation(fields: [red_social_id], references: [id])
+  int_programadas_tiktok   int_programada_tiktok[]
+  int_programadas_facebook int_programada_facebook[]
 }
 
-model interaccion_programada_tiktok {
-  id                   Int                              @id @default(autoincrement())
-  nombre_cuenta_tiktok String
-  url_video            String
-  cantidad_vistas      Int
-  dar_megusta          Boolean                          @default(false)
-  guardar_video        Boolean                          @default(false)
-  comentario           String?
-  estado               EstadoInteraccionTikTok          @default(PENDIENTE)
-  fecha_creacion       DateTime                         @default(now())
-  fecha_finalizacion   DateTime?
-  cuentaRedSocial      cuenta_red_social                @relation(fields: [cuentaRedSocialId], references: [id])
-  cuentaRedSocialId    Int
-  historiales          historial_interacciones_tiktok[]
+model int_programada_tiktok {
+  id                        Int                     @id @default(autoincrement())
+  cuenta_red_social_id      Int
+  url_video                 String
+  views_count               Int
+  liked                     Boolean                 @default(false)
+  saved                     Boolean                 @default(false)
+  comment                   String?
+  status                    EstadoInteraccionTikTok @default(PENDIENTE)
+  created_at                DateTime                @default(now())
+  finished_at               DateTime?
+  cuenta_red_social         cuenta_red_social       @relation(fields: [cuenta_red_social_id], references: [id])
+  hist_interacciones_tiktok hist_int_tiktok[]
 }
 
-model interaccion_programada_facebook {
-  id                         Int                                @id @default(autoincrement())
-  url_post                   String
-  dar_megusta                Boolean                            @default(false)
-  comentario                 String?
-  cantidad_grupos_compartir  Int                                @default(0)
-  tiempo_entre_publicaciones Int                                @default(0)
-  estado                     EstadoInteraccionFacebook          @default(PENDIENTE)
-  fecha_creacion             DateTime                           @default(now())
-  fecha_finalizacion         DateTime?
-  cuentaRedSocial            cuenta_red_social                  @relation(fields: [cuentaRedSocialId], references: [id])
-  cuentaRedSocialId          Int
-  historiales                historial_interacciones_facebook[]
+model int_programada_facebook {
+  id                          Int                       @id @default(autoincrement())
+  cuenta_red_social_id        Int
+  url_post                    String
+  liked                       Boolean                   @default(false)
+  comment                     String?
+  shared_groups_count         Int                       @default(0)
+  time_between_posts          Int                       @default(0)
+  status                      EstadoInteraccionFacebook @default(PENDIENTE)
+  created_at                  DateTime                  @default(now())
+  finished_at                 DateTime?
+  cuenta_red_social           cuenta_red_social         @relation(fields: [cuenta_red_social_id], references: [id])
+  hist_interacciones_facebook hist_int_facebook[]
 }
 
-model historial_interacciones_tiktok {
-  id                            Int                           @id @default(autoincrement())
-  estado                        EstadoHistorialTikTok
-  vistas_totales                Int                           @default(0)
-  megusta_aplicado              Boolean                       @default(false)
-  video_guardado                Boolean                       @default(false)
-  comentario_aplicado           Boolean                       @default(false)
-  fecha_finalizacion            DateTime?
-  interaccionProgramadaTiktok   interaccion_programada_tiktok @relation(fields: [interaccionProgramadaTiktokId], references: [id])
-  interaccionProgramadaTiktokId Int
+model hist_int_tiktok {
+  id                       Int                   @id @default(autoincrement())
+  int_programada_tiktok_id Int
+  tiktok_account_name      String?
+  status                   EstadoHistorialTikTok
+  total_views              Int                   @default(0)
+  liked                    Boolean               @default(false)
+  video_saved              Boolean               @default(false)
+  commented                Boolean               @default(false)
+  finished_at              DateTime?
+  int_programada_tiktok    int_programada_tiktok @relation(fields: [int_programada_tiktok_id], references: [id])
 }
 
-model historial_interacciones_facebook {
-  id                              Int                             @id @default(autoincrement())
-  estado                          EstadoHistorialFacebook
-  gruposCompartidos               Int                             @default(0)
-  megusta_aplicado                Boolean                         @default(false)
-  comentario_aplicado             Boolean                         @default(false)
-  fecha_finalizacion              DateTime?
-  interaccionProgramadaFacebook   interaccion_programada_facebook @relation(fields: [interaccionProgramadaFacebookId], references: [id])
-  interaccionProgramadaFacebookId Int
+model hist_int_facebook {
+  id                         Int                     @id @default(autoincrement())
+  int_programada_facebook_id Int
+  status                     EstadoHistorialFacebook
+  shared_groups              Int                     @default(0)
+  liked                      Boolean                 @default(false)
+  commented                  Boolean                 @default(false)
+  finished_at                DateTime?
+  int_programada_facebook    int_programada_facebook @relation(fields: [int_programada_facebook_id], references: [id])
 }
 
 enum Rol {
@@ -123,8 +123,8 @@ enum Rol {
 }
 
 enum TipoDispositivo {
-  ANDROID
-  IOS
+  FÍSICO
+  EMULADOR
 }
 
 enum Conexion {
@@ -172,4 +172,9 @@ enum EstadoHistorialTikTok {
 enum EstadoHistorialFacebook {
   COMPLETADA
   FALLIDA
+}
+
+enum RedesSociales {
+  TIKTOK
+  FACEBOOK
 }
