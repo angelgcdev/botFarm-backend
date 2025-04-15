@@ -23,7 +23,7 @@ model usuario {
 model dispositivo {
   id             Int               @id @default(autoincrement())
   usuario_id     Int
-  serial_number  String
+  udid           String
   device_type    TipoDispositivo
   status         EstadoDispositivo @default(INACTIVO)
   version_so     String

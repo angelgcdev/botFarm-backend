@@ -6,24 +6,28 @@ import {
   Patch,
   Param,
   Delete,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
+import { LoginDto } from './dto/login.dto';
+import { LoginResponse } from './types/login-response.interface';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const user = await this.authService.validateUser({
-      email: body.email,
-      password: body.password,
-    });
+  async login(@Body() body: LoginDto): Promise<LoginResponse> {
+    const user = await this.authService.validateUser(body);
 
     if (!user) {
-      return { message: 'Invalid credentials' };
+      throw new HttpException(
+        'Credenciales invalidas',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     //Generar y devolver el token JWT

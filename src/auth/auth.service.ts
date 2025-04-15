@@ -9,13 +9,10 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { UpdateAuthDto } from './dto/update-auth.dto';
-// import passport from 'passport';
-
-// Interfaz para las credenciales de usuario
-interface UserCredentials {
-  email: string;
-  password: string;
-}
+import { LoginDto } from './dto/login.dto';
+import { User } from './types/user.interface';
+import { Prisma } from '@prisma/client';
+import { LoginResponse } from './types/login-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -25,9 +22,13 @@ export class AuthService {
   ) {}
 
   //Metodo para validar las credenciales del usuario
-  async validateUser({ email, password }: UserCredentials): Promise<any> {
+  async validateUser(credentials: LoginDto): Promise<User> {
+    const { email, password } = credentials;
+
     //Buscar usuario en la base de datos
-    const user = await this.prisma.usuario.findUnique({ where: { email } });
+    const user = await this.prisma.usuario.findUnique({
+      where: { email },
+    });
 
     console.log(user);
 
@@ -48,16 +49,18 @@ export class AuthService {
     }
 
     //Si todo ok, devolvemos el usuario sin el password
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return userWithoutPassword as User;
   }
 
   //Metodo login
-  async login(user: any) {
+  login(user: User): LoginResponse {
     const payload = { sub: user.id, email: user.email };
 
     return {
       access_token: this.jwtService.sign(payload),
+      id: user.id,
     };
   }
 
@@ -75,10 +78,14 @@ export class AuthService {
       });
 
       //Devolver el usuario sin la contraseña
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _, ...userWithoutPassword } = user;
       return userWithoutPassword;
     } catch (error) {
-      if (error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new HttpException(`Usuario ya existe.`, HttpStatus.CONFLICT);
       }
 
