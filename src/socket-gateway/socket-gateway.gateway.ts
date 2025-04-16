@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
+  ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
   SubscribeMessage,
@@ -20,13 +23,38 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     console.log(`Client connected: ${client.id}`);
   }
 
-  //
+  //Registrar usuario a la sala
+  @SubscribeMessage('registrar_usuario')
+  async handleRegistrarUsuario(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { usuario_id: number },
+  ) {
+    if (!data?.usuario_id) {
+      client.disconnect();
+      console.warn(`Cliente ${client.id} intentó registrarse sin usuario_id`);
+    }
+
+    const room = `usuario_${data.usuario_id}`;
+    await client.join(room);
+
+    //Guardar el usuario_id en el socket del usuario
+    client.data.usuario_id = data.usuario_id;
+
+    console.log(`Socket ${client.id} unido a la sala ${room}`);
+  }
+
+  //Escuchar evento para recibir Datos para la automatizacion
   @SubscribeMessage('programar-automatizacion')
-  handleProgramacion(@MessageBody() data: any): void {
-    console.log('Automatizacion recibida:', data);
+  handleProgramacion(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ): void {
+    const usuario_id = client.data.usuario_id;
+    const room = `usuario_${usuario_id}`;
+    console.log(`Automatización recibida de Usuario ${usuario_id}:`, data);
 
     //Remitimos al servidor local
-    this.server.emit('ejecutar-automatizacion', data);
+    this.server.to(room).emit('ejecutar-automatizacion', data);
   }
 
   //Escuchar evento dispositivo conectado
@@ -42,14 +70,5 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     } catch (error) {
       console.error('Error al guardar el dispositivo', error);
     }
-  }
-
-  //Escucha mensajes desde el cliente
-  @SubscribeMessage('mensaje')
-  handleMessage(@MessageBody() data: string): void {
-    console.log(`Mensaje recibido:`, data);
-
-    // Envia respuesta a todos los clientes
-    this.server.emit('respuesta', { mensaje: 'Recibido en el backend', data });
   }
 }
