@@ -1,3 +1,5 @@
+import { Response } from 'express';
+
 import {
   Controller,
   Get,
@@ -8,6 +10,8 @@ import {
   Delete,
   HttpException,
   HttpStatus,
+  Res,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
@@ -20,8 +24,12 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: LoginDto): Promise<LoginResponse> {
-    const user = await this.authService.validateUser(body);
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() credentials: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LoginResponse> {
+    const user = await this.authService.validateUser(credentials);
 
     if (!user) {
       throw new HttpException(
@@ -31,7 +39,12 @@ export class AuthController {
     }
 
     //Generar y devolver el token JWT
-    return this.authService.login(user);
+    return this.authService.login(user, res);
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    return this.authService.logout(res);
   }
 
   @Post('register')

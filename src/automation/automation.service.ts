@@ -1,10 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { CreateAutomationDto } from './dto/create-automation.dto';
+import { UpdateAutomationDto } from './dto/update-automation.dto';
 
 @Injectable()
 export class AutomationService {
-  executeAutomation(data: any) {
-    console.log('Ejecutando automatización con:', data);
+  create(createAutomationDto: CreateAutomationDto) {
+    return 'This action adds a new automation';
+  }
 
-    //Aqui iria la logica para dispara
+  findAll() {
+    return `This action returns all automation`;
+  }
+
+  findOne(id: number) {
+    return `This action returns a #${id} automation`;
+  }
+
+  update(id: number, updateAutomationDto: UpdateAutomationDto) {
+    return `This action updates a #${id} automation`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} automation`;
   }
 }

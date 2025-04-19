@@ -53,7 +53,6 @@ model cuenta_red_social {
   id                       Int                       @id @default(autoincrement())
   red_social_id            Int
   cuenta_google_id         Int
-  email                    String                    @unique
   username                 String?
   status                   EstadoCuentaRedSocial     @default(ACTIVO)
   created_at               DateTime                  @default(now())

@@ -1,8 +1,10 @@
+import { Response } from 'express';
 import {
   // ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
+  Res,
 } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { User } from './types/user.interface';
 import { Prisma } from '@prisma/client';
 import { LoginResponse } from './types/login-response.interface';
+import { JwtPayload } from './jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -55,13 +58,27 @@ export class AuthService {
   }
 
   //Metodo login
-  login(user: User): LoginResponse {
-    const payload = { sub: user.id, email: user.email };
+  login(user: User, @Res({ passthrough: true }) res: Response): LoginResponse {
+    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const token = this.jwtService.sign(payload);
+
+    //Establecer cookie con HttpOnly y Secure si estas en produccion
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', //solo en https
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24, // 1 dia
+    });
 
     return {
-      access_token: this.jwtService.sign(payload),
       id: user.id,
     };
+  }
+
+  //Metodo logout
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token');
+    return { message: 'Sesiòn cerrada con èxito.' };
   }
 
   //Registro de usuario
