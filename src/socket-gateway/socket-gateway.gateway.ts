@@ -9,18 +9,34 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { device } from './dto/device.dto';
-import { SocketGatewayService } from './socket-gateway.service';
+import { device } from '../devices/dto/device.dto';
+import { DevicesService } from 'src/devices/devices.service';
 
 @WebSocketGateway({ cors: true })
 export class SocketGatewayGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly socketService: SocketGatewayService) {}
+  constructor(private readonly devicesService: DevicesService) {}
 
+  //Evento para usuarios conectados
   handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
+  }
+
+  //Evento para usuarios desconectados
+  handleDisconnect(client: Socket) {
+    const usuario_id = client.data?.usuario_id;
+    if (usuario_id) {
+      const room = `usuario_${usuario_id}`;
+      console.log(
+        `Cliente ${client.id} (Usuario ${usuario_id}) desconectado de la sala ${room}`,
+      );
+      // // Opcional: Limpiar datos o notificar a otros clientes
+      // this.server.to(room).emit('usuario_desconectado', { usuario_id });
+    } else {
+      console.log(`Cliente ${client.id} desconectado (sin usuario_id)`);
+    }
   }
 
   //Registrar usuario a la sala
@@ -57,14 +73,14 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     this.server.to(room).emit('ejecutar-automatizacion', data);
   }
 
-  //Escuchar evento dispositivo conectado
+  //Escuchar evento dispositivo conectado y guardar
   @SubscribeMessage('device_connected')
   async handleDevices(@MessageBody() data: device): Promise<void> {
     console.log('dispositivo conectado recibido:', data);
 
     //Guardar el dispositivo en la base de datos usando el servicio
     try {
-      await this.socketService.saveDevice(data);
+      await this.devicesService.saveDevice(data);
       //Remitimos al servidor local
       this.server.emit('device_connected_notification', data.udid);
     } catch (error) {

@@ -21,17 +21,18 @@ model usuario {
 }
 
 model dispositivo {
-  id             Int               @id @default(autoincrement())
-  usuario_id     Int
-  udid           String
-  device_type    TipoDispositivo
-  status         EstadoDispositivo @default(INACTIVO)
-  version_so     String
-  marca          String
-  connected_at   DateTime          @default(now())
-  last_activity  DateTime?
-  usuario        usuario           @relation(fields: [usuario_id], references: [id])
-  cuentas_google cuenta_google[]
+  id                     Int               @id @default(autoincrement())
+  usuario_id             Int
+  udid                   String
+  device_type            TipoDispositivo
+  status                 EstadoDispositivo @default(INACTIVO)
+  version_so             String
+  marca                  String
+  connected_at           DateTime          @default(now())
+  last_activity          DateTime?
+  configuracion_completa Boolean           @default(false)
+  usuario                usuario           @relation(fields: [usuario_id], references: [id])
+  cuentas_google         cuenta_google[]
 }
 
 model cuenta_google {
