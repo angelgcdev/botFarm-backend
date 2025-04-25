@@ -60,29 +60,38 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   }
 
   //Escuchar evento para recibir Datos para la automatizacion
-  @SubscribeMessage('programar-automatizacion')
+  @SubscribeMessage('startAutomation')
   handleProgramacion(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: any,
   ): void {
-    const usuario_id = client.data.usuario_id;
-    const room = `usuario_${usuario_id}`;
+    const usuario_id = client.data.usuario_id; // Acceder al usuario_id
+    const room = `usuario_${usuario_id}`; //Definir la sala deul usuario
     console.log(`Automatización recibida de Usuario ${usuario_id}:`, data);
 
     //Remitimos al servidor local
-    this.server.to(room).emit('ejecutar-automatizacion', data);
+    this.server.to(room).emit('executeAutomation', data);
   }
 
   //Escuchar evento dispositivo conectado y guardar
-  @SubscribeMessage('device_connected')
-  async handleDevices(@MessageBody() data: device): Promise<void> {
-    console.log('dispositivo conectado recibido:', data);
+  @SubscribeMessage('deviceConnected')
+  async handleDevices(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: device,
+  ): Promise<void> {
+    const usuario_id = client.data.usuario_id;
+    const room = `usuario_${usuario_id}`;
+
+    console.log(
+      `dispositivo conectado recibido de Usuario ${usuario_id}:`,
+      data,
+    );
 
     //Guardar el dispositivo en la base de datos usando el servicio
     try {
       await this.devicesService.saveDevice(data);
       //Remitimos al servidor local
-      this.server.emit('device_connected_notification', data.udid);
+      this.server.to(room).emit('deviceConnectedNotification', data.udid);
     } catch (error) {
       console.error('Error al guardar el dispositivo', error);
     }

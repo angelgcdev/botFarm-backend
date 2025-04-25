@@ -73,7 +73,6 @@ model int_programada_tiktok {
   comment                   String?
   status                    EstadoInteraccionTikTok @default(PENDIENTE)
   created_at                DateTime                @default(now())
-  finished_at               DateTime?
   cuenta_red_social         cuenta_red_social       @relation(fields: [cuenta_red_social_id], references: [id])
   hist_interacciones_tiktok hist_int_tiktok[]
 }
@@ -88,7 +87,6 @@ model int_programada_facebook {
   time_between_posts          Int                       @default(0)
   status                      EstadoInteraccionFacebook @default(PENDIENTE)
   created_at                  DateTime                  @default(now())
-  finished_at                 DateTime?
   cuenta_red_social           cuenta_red_social         @relation(fields: [cuenta_red_social_id], references: [id])
   hist_interacciones_facebook hist_int_facebook[]
 }
