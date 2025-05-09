@@ -5,7 +5,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { Rol } from '@prisma/client';
+import { Role } from '@prisma/client';
 
 export class CreateAuthDto {
   @IsNotEmpty({ message: 'El email no puede esta vacio' })
@@ -17,9 +17,9 @@ export class CreateAuthDto {
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
   password: string;
 
-  @IsEnum(Rol, {
+  @IsEnum(Role, {
     message:
       'El rol deber ser uno de los siguientes valores: ADMINISTADOR, PERSONAL',
   })
-  role: Rol;
+  role: Role;
 }

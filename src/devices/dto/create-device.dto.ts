@@ -1,5 +1,5 @@
 import { IsEmail, IsArray, IsInt, IsEnum } from 'class-validator';
-import { RedesSociales } from '@prisma/client';
+import { SocialNetworkType } from '@prisma/client';
 
 export class CreateDeviceDto {
   @IsEmail()
@@ -9,6 +9,6 @@ export class CreateDeviceDto {
   dispositivo_id: number;
 
   @IsArray()
-  @IsEnum(RedesSociales, { each: true }) // <- Valida cada item como un enum válido
-  items: RedesSociales[]; // redes sociales  como "tiktok", "facebook"
+  @IsEnum(SocialNetworkType, { each: true }) // <- Valida cada item como un enum válido
+  items: SocialNetworkType[]; // redes sociales  como "tiktok", "facebook"
 }

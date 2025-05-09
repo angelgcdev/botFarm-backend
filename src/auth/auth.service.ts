@@ -29,7 +29,7 @@ export class AuthService {
     const { email, password } = credentials;
 
     //Buscar usuario en la base de datos
-    const user = await this.prisma.usuario.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
@@ -71,7 +71,7 @@ export class AuthService {
     });
 
     return {
-      id: user.id,
+      user_id: user.id,
     };
   }
 
@@ -87,7 +87,7 @@ export class AuthService {
       //Generar un hash de la contraseña antes de guardarla
       const hashedPassword = await bcrypt.hash(createAuthDto.password, 10);
 
-      const user = await this.prisma.usuario.create({
+      const user = await this.prisma.user.create({
         data: {
           ...createAuthDto,
           password: hashedPassword,
@@ -116,7 +116,7 @@ export class AuthService {
   }
 
   findAllUsers() {
-    return this.prisma.usuario.findMany();
+    return this.prisma.user.findMany();
   }
 
   async updateUser(id: number, updateAuthDto: UpdateAuthDto) {
@@ -131,7 +131,7 @@ export class AuthService {
     //Hashear la nueva contraseña
     const hashedPassword = await bcrypt.hash(updateAuthDto.password, 10);
 
-    const userFound = await this.prisma.usuario.update({
+    const userFound = await this.prisma.user.update({
       where: {
         id,
       },
@@ -151,7 +151,7 @@ export class AuthService {
   }
 
   async removeUser(id: number) {
-    const deletedUser = await this.prisma.usuario.delete({ where: { id } });
+    const deletedUser = await this.prisma.user.delete({ where: { id } });
 
     if (!deletedUser) {
       throw new HttpException(

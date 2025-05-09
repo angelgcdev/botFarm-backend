@@ -1,11 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { CreateHistoryDto } from './dto/create-history.dto';
 import { UpdateHistoryDto } from './dto/update-history.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class HistoryService {
-  create(createHistoryDto: CreateHistoryDto) {
-    return 'This action adds a new history';
+  constructor(private prisma: PrismaService) {}
+
+  async create(createHistoryDto: CreateHistoryDto) {
+    return this.prisma.tiktok_interaction_history.create({
+      data: createHistoryDto,
+    });
   }
 
   findAll() {

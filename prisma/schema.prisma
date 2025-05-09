@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./node_modules/@prisma/client"
 }
 
 datasource db {
@@ -10,169 +11,169 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model usuario {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  password     String
-  role         Rol
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
-  dispositivos dispositivo[]
+model user {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  role       Role
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  devices device[]
 }
 
-model dispositivo {
-  id                     Int               @id @default(autoincrement())
-  usuario_id             Int
-  udid                   String
-  device_type            TipoDispositivo
-  status                 EstadoDispositivo @default(INACTIVO)
-  version_so             String
-  marca                  String
-  connected_at           DateTime          @default(now())
-  last_activity          DateTime?
-  configuracion_completa Boolean           @default(false)
-  usuario                usuario           @relation(fields: [usuario_id], references: [id])
-  cuentas_google         cuenta_google[]
+model device {
+  id              Int          @id @default(autoincrement())
+  user_id         Int
+  udid            String
+  device_type     DeviceType
+  status          DeviceStatus @default(INACTIVO)
+  os_version      String
+  brand           String
+  connected_at    DateTime     @default(now())
+  last_activity   DateTime?
+  complete_config Boolean      @default(false)
+  user            user         @relation(fields: [user_id], references: [id])
+
+  google_accounts                        google_account[]
+  device_scheduled_tiktok_interactions   device_scheduled_tiktok_interaction[]
+  device_scheduled_facebook_interactions device_scheduled_facebook_interaction[]
+  tiktok_interaction_histories           tiktok_interaction_history[]
+  facebook_interaction_histories         facebook_interaction_history[]
 }
 
-model cuenta_google {
+model google_account {
+  id        Int                 @id @default(autoincrement())
+  device_id Int
+  email     String              @unique
+  status    GoogleAccountStatus @default(ACTIVO)
+  device    device              @relation(fields: [device_id], references: [id])
+
+  social_network_accounts social_network_account[]
+}
+
+model social_network {
+  id   Int               @id @default(autoincrement())
+  name SocialNetworkType
+
+  social_network_accounts social_network_account[]
+}
+
+model social_network_account {
   id                Int                 @id @default(autoincrement())
-  dispositivo_id    Int
-  email             String              @unique
-  status            EstadoCuentaGoogle  @default(ACTIVO)
-  dispositivo       dispositivo         @relation(fields: [dispositivo_id], references: [id])
-  cuenta_red_social cuenta_red_social[]
+  social_network_id Int
+  google_account_id Int
+  username          String?
+  status            SocialAccountStatus @default(ACTIVO)
+  created_at        DateTime            @default(now())
+  google_account    google_account      @relation(fields: [google_account_id], references: [id])
+  social_network    social_network      @relation(fields: [social_network_id], references: [id])
 }
 
-model red_social {
-  id                Int                 @id @default(autoincrement())
-  name              RedesSociales
-  cuenta_red_social cuenta_red_social[]
+model scheduled_tiktok_interaction {
+  id          Int     @id @default(autoincrement())
+  video_url   String
+  views_count Int
+  liked       Boolean @default(false)
+  saved       Boolean @default(false)
+  comment     String?
+
+  device_scheduled_tiktok_interactions device_scheduled_tiktok_interaction[]
 }
 
-model cuenta_red_social {
-  id                       Int                       @id @default(autoincrement())
-  red_social_id            Int
-  cuenta_google_id         Int
-  username                 String?
-  status                   EstadoCuentaRedSocial     @default(ACTIVO)
-  created_at               DateTime                  @default(now())
-  cuenta_google            cuenta_google             @relation(fields: [cuenta_google_id], references: [id])
-  red_social               red_social                @relation(fields: [red_social_id], references: [id])
-  int_programadas_tiktok   int_programada_tiktok[]
-  int_programadas_facebook int_programada_facebook[]
+model scheduled_facebook_interaction {
+  id                  Int     @id @default(autoincrement())
+  post_url            String
+  liked               Boolean @default(false)
+  comment             String?
+  shared_groups_count Int     @default(0)
+  time_between_posts  Int     @default(0)
+
+  device_scheduled_facebook_interactions device_scheduled_facebook_interaction[]
 }
 
-model int_programada_tiktok {
-  id                        Int                     @id @default(autoincrement())
-  cuenta_red_social_id      Int
-  url_video                 String
-  views_count               Int
-  liked                     Boolean                 @default(false)
-  saved                     Boolean                 @default(false)
-  comment                   String?
-  status                    EstadoInteraccionTikTok @default(PENDIENTE)
-  created_at                DateTime                @default(now())
-  cuenta_red_social         cuenta_red_social       @relation(fields: [cuenta_red_social_id], references: [id])
-  hist_interacciones_tiktok hist_int_tiktok[]
+model device_scheduled_tiktok_interaction {
+  id                              Int               @id @default(autoincrement())
+  device_id                       Int
+  scheduled_tiktok_interaction_id Int
+  created_at                      DateTime          @default(now())
+  status                          InteractionStatus @default(PENDIENTE)
+
+  device                       device                       @relation(fields: [device_id], references: [id])
+  scheduled_tiktok_interaction scheduled_tiktok_interaction @relation(fields: [scheduled_tiktok_interaction_id], references: [id])
 }
 
-model int_programada_facebook {
-  id                          Int                       @id @default(autoincrement())
-  cuenta_red_social_id        Int
-  url_post                    String
-  liked                       Boolean                   @default(false)
-  comment                     String?
-  shared_groups_count         Int                       @default(0)
-  time_between_posts          Int                       @default(0)
-  status                      EstadoInteraccionFacebook @default(PENDIENTE)
-  created_at                  DateTime                  @default(now())
-  cuenta_red_social           cuenta_red_social         @relation(fields: [cuenta_red_social_id], references: [id])
-  hist_interacciones_facebook hist_int_facebook[]
+model device_scheduled_facebook_interaction {
+  id                                Int               @id @default(autoincrement())
+  device_id                         Int
+  scheduled_facebook_interaction_id Int
+  created_at                        DateTime          @default(now())
+  status                            InteractionStatus @default(PENDIENTE)
+
+  device                         device                         @relation(fields: [device_id], references: [id])
+  scheduled_facebook_interaction scheduled_facebook_interaction @relation(fields: [scheduled_facebook_interaction_id], references: [id])
 }
 
-model hist_int_tiktok {
-  id                       Int                   @id @default(autoincrement())
-  int_programada_tiktok_id Int
-  tiktok_account_name      String?
-  status                   EstadoHistorialTikTok
-  total_views              Int                   @default(0)
-  liked                    Boolean               @default(false)
-  video_saved              Boolean               @default(false)
-  commented                Boolean               @default(false)
-  finished_at              DateTime?
-  int_programada_tiktok    int_programada_tiktok @relation(fields: [int_programada_tiktok_id], references: [id])
+model tiktok_interaction_history {
+  id          Int       @id @default(autoincrement())
+  device_id   Int
+  username    String?
+  total_views Int       @default(0)
+  liked       Boolean   @default(false)
+  video_saved Boolean   @default(false)
+  commented   String?
+  finished_at DateTime? @default(now())
+
+  device device @relation(fields: [device_id], references: [id])
 }
 
-model hist_int_facebook {
-  id                         Int                     @id @default(autoincrement())
-  int_programada_facebook_id Int
-  status                     EstadoHistorialFacebook
-  shared_groups              Int                     @default(0)
-  liked                      Boolean                 @default(false)
-  commented                  Boolean                 @default(false)
-  finished_at                DateTime?
-  int_programada_facebook    int_programada_facebook @relation(fields: [int_programada_facebook_id], references: [id])
+model facebook_interaction_history {
+  id                  Int       @id @default(autoincrement())
+  device_id           Int
+  shared_groups_count Int       @default(0)
+  liked               Boolean   @default(false)
+  commented           Boolean   @default(false)
+  finished_at         DateTime? @default(now())
+
+  device device @relation(fields: [device_id], references: [id])
 }
 
-enum Rol {
+enum Role {
   ADMINISTRADOR
   PERSONAL
 }
 
-enum TipoDispositivo {
-  FÍSICO
+enum DeviceType {
+  FISICO
   EMULADOR
 }
 
-enum Conexion {
-  USB
-  WIFI
-}
-
-enum EstadoDispositivo {
+enum DeviceStatus {
   ACTIVO
   INACTIVO
 }
 
-enum EstadoCuentaGoogle {
+enum GoogleAccountStatus {
   ACTIVO
   INACTIVO
   BANEADO
 }
 
-enum EstadoCuentaRedSocial {
+enum SocialAccountStatus {
   ACTIVO
   INACTIVO
   SUSPENDIDO
   BANEADO
 }
 
-enum EstadoInteraccionTikTok {
+enum InteractionStatus {
   PENDIENTE
   EN_PROGRESO
   COMPLETADA
   FALLIDA
 }
 
-enum EstadoInteraccionFacebook {
-  PENDIENTE
-  EN_PROGRESO
-  COMPLETADA
-  FALLIDA
-}
-
-enum EstadoHistorialTikTok {
-  COMPLETADA
-  FALLIDA
-}
-
-enum EstadoHistorialFacebook {
-  COMPLETADA
-  FALLIDA
-}
-
-enum RedesSociales {
+enum SocialNetworkType {
   TIKTOK
   FACEBOOK
 }

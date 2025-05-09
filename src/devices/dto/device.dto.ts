@@ -1,3 +1,3 @@
-import { dispositivo } from '@prisma/client';
+import { device as PrismaDevice } from '@prisma/client';
 
-export type device = dispositivo;
+export type device = PrismaDevice;

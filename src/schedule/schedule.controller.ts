@@ -1,16 +1,26 @@
+// 1. Librerías de Node.js
+
+// 2. Librerías de terceros
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
-import { ScheduleService } from './schedule.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+
+// 3. Librerías internas absolutas
+
+// 4. Imports relativos
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
+import { ScheduleService } from './schedule.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller('schedule')
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}

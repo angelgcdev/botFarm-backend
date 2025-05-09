@@ -1,4 +1,4 @@
 // Interfaz el retorno de login
 export interface LoginResponse {
-  id: number;
+  user_id: number;
 }
