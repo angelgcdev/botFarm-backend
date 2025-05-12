@@ -75,6 +75,23 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     console.log(`Socket ${client.id} unido a la sala ${room}`);
   }
 
+  //Evento para cerrar sesion socket io client
+  @SubscribeMessage('cerrarSesion')
+  handleCloseSesionClient(@ConnectedSocket() client: Socket): void {
+    const user_id = client.data.user_id; // Acceder al usuario_id
+    const room = `usuario_${user_id}`; //Definir la sala del usuario
+
+    try {
+      //Remitimos al servidor local
+      this.server.to(room).emit('cerrarSesion');
+    } catch (error) {
+      console.error(
+        'Error al emitir el evento de cerrar sesión del cliente',
+        error,
+      );
+    }
+  }
+
   //Escuchar evento para recibir Datos para la automatizacion
   @SubscribeMessage('schedule:tiktok:start')
   async handleScheduleTiktokStart(
