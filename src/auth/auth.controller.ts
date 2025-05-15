@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 import {
   Controller,
@@ -12,23 +12,37 @@ import {
   HttpStatus,
   Res,
   HttpCode,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
-import { LoginResponse } from './types/login-response.interface';
+// import { LoginResponse } from './types/login-response.interface';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtPayload } from './types/jwt-payload.interface';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  //Para validar acceso a rutas protegidas
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getProfile(@Req() req: Request) {
+    const user = req.user as JwtPayload;
+    console.log('Cookies recibidas:', req.cookies); // 👈 esto debe mostrar `access_token`
+    console.log('User:', user);
+    return { ok: true, user };
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() credentials: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<LoginResponse> {
+  ): Promise<JwtPayload> {
     const user = await this.authService.validateUser(credentials);
 
     if (!user) {
@@ -38,7 +52,7 @@ export class AuthController {
       );
     }
 
-    //Generar y devolver el token JWT
+    //Generar y devolver el payload
     return this.authService.login(user, res);
   }
 

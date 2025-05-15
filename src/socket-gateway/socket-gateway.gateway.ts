@@ -137,7 +137,12 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   async handleDeviceScheduleTiktokStatusUpdate(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    data: { idRelations: any; status: InteractionStatus; history: any },
+    data: {
+      idRelations: any;
+      status: InteractionStatus;
+      history: any;
+      error?: any;
+    },
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
     const room = `usuario_${user_id}`; //Definir la sala del usuario
@@ -145,6 +150,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     const createHistoryData = {
       ...data.history,
       device_id: data.idRelations.device_id,
+      status: data.status,
     };
     console.log('Datos de la interaccion:', data);
 

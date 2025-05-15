@@ -114,25 +114,28 @@ model device_scheduled_facebook_interaction {
 }
 
 model tiktok_interaction_history {
-  id          Int       @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   device_id   Int
   username    String?
-  total_views Int       @default(0)
-  liked       Boolean   @default(false)
-  video_saved Boolean   @default(false)
+  total_views Int           @default(0)
+  liked       Boolean       @default(false)
+  video_saved Boolean       @default(false)
   commented   String?
-  finished_at DateTime? @default(now())
+  finished_at DateTime?     @default(now())
+  video_url   String?
+  status      HistoryStatus @default(FALLIDA)
 
   device device @relation(fields: [device_id], references: [id])
 }
 
 model facebook_interaction_history {
-  id                  Int       @id @default(autoincrement())
+  id                  Int           @id @default(autoincrement())
   device_id           Int
-  shared_groups_count Int       @default(0)
-  liked               Boolean   @default(false)
-  commented           Boolean   @default(false)
-  finished_at         DateTime? @default(now())
+  shared_groups_count Int           @default(0)
+  liked               Boolean       @default(false)
+  commented           Boolean       @default(false)
+  finished_at         DateTime?     @default(now())
+  status              HistoryStatus @default(FALLIDA)
 
   device device @relation(fields: [device_id], references: [id])
 }
@@ -168,6 +171,11 @@ enum SocialAccountStatus {
 enum InteractionStatus {
   PENDIENTE
   EN_PROGRESO
+  COMPLETADA
+  FALLIDA
+}
+
+enum HistoryStatus {
   COMPLETADA
   FALLIDA
 }

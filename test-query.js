@@ -35,21 +35,42 @@ const prisma = new PrismaClient();
 
 async function testCuentaGoogleQuery() {
   try {
-    // Usa un ID de dispositivo válido de tu base de datos
-    const dispositivoId = 15; // Reemplaza este valor con un ID real
+    const user_id = 1;
 
-    const cuentaGoogle = await prisma.cuenta_google.findFirst({
-      where: { dispositivo_id: dispositivoId },
+    const history = await prisma.tiktok_interaction_history.findMany({
+      where: {
+        device: {
+          user_id,
+        },
+      },
       include: {
-        cuenta_red_social: {
-          include: {
-            red_social: true,
+        device: {
+          select: {
+            google_accounts: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
     });
 
-    console.log('Resultado:', JSON.stringify(cuentaGoogle, null, 2));
+    // // Usa un ID de dispositivo válido de tu base de datos
+    // const dispositivoId = 15; // Reemplaza este valor con un ID real
+
+    // const cuentaGoogle = await prisma.cuenta_google.findFirst({
+    //   where: { dispositivo_id: dispositivoId },
+    //   include: {
+    //     cuenta_red_social: {
+    //       include: {
+    //         red_social: true,
+    //       },
+    //     },
+    //   },
+    // });
+
+    console.log('Resultado:', JSON.stringify(history, null, 2));
   } catch (error) {
     console.error('Error ejecutando la consulta:', error);
   } finally {

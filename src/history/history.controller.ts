@@ -1,8 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  UnauthorizedException,
+  Req,
+} from '@nestjs/common';
 import { HistoryService } from './history.service';
 import { CreateHistoryDto } from './dto/create-history.dto';
 import { UpdateHistoryDto } from './dto/update-history.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Request } from 'express';
+import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
 
+@UseGuards(JwtAuthGuard)
 @Controller('history')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
@@ -13,8 +28,13 @@ export class HistoryController {
   }
 
   @Get()
-  findAll() {
-    return this.historyService.findAll();
+  findAll(@Req() req: Request) {
+    const user = req.user as JwtPayload;
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return this.historyService.findAll(user.sub);
   }
 
   @Get(':id')

@@ -13,8 +13,25 @@ export class HistoryService {
     });
   }
 
-  findAll() {
-    return `This action returns all history`;
+  async findAll(user_id: number) {
+    return await this.prisma.tiktok_interaction_history.findMany({
+      where: {
+        device: {
+          user_id,
+        },
+      },
+      include: {
+        device: {
+          select: {
+            google_accounts: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   findOne(id: number) {

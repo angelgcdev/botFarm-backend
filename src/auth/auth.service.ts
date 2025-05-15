@@ -14,8 +14,8 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from './types/user.interface';
 import { Prisma } from '@prisma/client';
-import { LoginResponse } from './types/login-response.interface';
-import { JwtPayload } from './jwt.strategy';
+// import { LoginResponse } from './types/login-response.interface';
+import { JwtPayload } from './types/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -58,7 +58,7 @@ export class AuthService {
   }
 
   //Metodo login
-  login(user: User, @Res({ passthrough: true }) res: Response): LoginResponse {
+  login(user: User, @Res({ passthrough: true }) res: Response): JwtPayload {
     const payload: JwtPayload = { sub: user.id, email: user.email };
     const token = this.jwtService.sign(payload);
 
@@ -66,13 +66,11 @@ export class AuthService {
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', //solo en https
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24, // 1 dia
     });
 
-    return {
-      user_id: user.id,
-    };
+    return payload;
   }
 
   //Metodo logout
