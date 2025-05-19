@@ -9,6 +9,8 @@ import {
   Param,
   Patch,
   Post,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -19,6 +21,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { ScheduleService } from './schedule.service';
+import { Request } from 'express';
+import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
 
 @UseGuards(JwtAuthGuard)
 @Controller('schedule')
@@ -26,13 +30,22 @@ export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
   @Post()
-  create(@Body() createScheduleDto: CreateScheduleDto) {
-    return this.scheduleService.create(createScheduleDto);
+  create(@Req() req: Request, @Body() createScheduleDto: CreateScheduleDto) {
+    const user = req.user as JwtPayload;
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    return this.scheduleService.create(createScheduleDto, user.sub);
   }
 
   @Get()
-  findAll() {
-    return this.scheduleService.findAll();
+  findAll(@Req() req: Request) {
+    const user = req.user as JwtPayload;
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return this.scheduleService.findAll(user.sub);
   }
 
   @Get(':id')

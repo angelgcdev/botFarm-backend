@@ -13,7 +13,10 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { InteractionStatus } from '@prisma/client';
+import {
+  InteractionStatus,
+  scheduled_tiktok_interaction,
+} from '@prisma/client';
 
 // 3. Librerías internas absolutas
 
@@ -21,8 +24,8 @@ import { InteractionStatus } from '@prisma/client';
 import { DevicesService } from 'src/devices/devices.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { device } from '../devices/dto/device.dto';
-import { ScheduleTiktokDTO } from './dto/schedule-tiktok.dto';
 import { HistoryService } from 'src/history/history.service';
+import { CreateHistoryDto } from '../history/dto/create-history.dto';
 
 @WebSocketGateway({ cors: true })
 export class SocketGatewayGateway implements OnGatewayConnection {
@@ -98,7 +101,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
     @MessageBody()
     data: {
-      scheduledTiktokData: ScheduleTiktokDTO;
+      scheduledTiktokInteractionData: scheduled_tiktok_interaction;
       activeDevices: [device];
     },
   ): Promise<void> {
@@ -106,29 +109,30 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     const room = `usuario_${user_id}`; //Definir la sala del usuario
 
     console.log(`Interacción de TikTok recibida del usuario ${user_id}:`);
-    console.log('📹Datos del formulario:', data.scheduledTiktokData);
+    console.log('Datos del frontend:', data);
+    console.log('📹Datos del formulario:', data.scheduledTiktokInteractionData);
     console.log('📱Dispositivos activos:', data.activeDevices);
 
-    // Guardar los datos en la base de datos
     try {
-      const res =
-        await this.scheduleService.saveScheduleTiktokInteractionWithDevices(
-          data.scheduledTiktokData,
-          data.activeDevices,
-        );
+      // Actualizar el estado en la base de datos
+      const status = 'EN_PROGRESO';
+      await this.scheduleService.updateStatusScheduleTiktokInteraction({
+        status,
+        id: data.scheduledTiktokInteractionData.id,
+      });
 
-      //Agregar los IDs de device_scheduled_tiktok_interaction al payload
-      const dataWithIds = {
-        ...data.scheduledTiktokData,
-        idsRelations: res, // [{device_id, device_scheduled_tiktok_interaction_id, udid}]
-      };
+      //Notificamos al frontend
+      this.server.to(room).emit('schedule:tiktok:status:notification', {
+        status: 'Ejecución en proceso',
+      });
 
-      console.log('Datos con los IDs:', dataWithIds);
+      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+      this.server.to(room).emit('schedule:tiktok:interaction:update');
 
       //Remitimos al servidor local
-      this.server.to(room).emit('schedule:tiktok:execute', dataWithIds);
+      this.server.to(room).emit('schedule:tiktok:execute', data);
     } catch (error) {
-      console.error('Error al guardar la interacción programada', error);
+      console.error('Error al ejecutar la interacción', error);
     }
   }
 
@@ -138,30 +142,39 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
     @MessageBody()
     data: {
-      idRelations: any;
+      activeDevice: any;
       status: InteractionStatus;
       history: any;
+      scheduledTiktokInteraction_id: number;
       error?: any;
     },
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
     const room = `usuario_${user_id}`; //Definir la sala del usuario
 
-    const createHistoryData = {
+    const createHistoryData: CreateHistoryDto = {
       ...data.history,
-      device_id: data.idRelations.device_id,
+      device_id: data.activeDevice.id,
       status: data.status,
     };
     console.log('Datos de la interaccion:', data);
 
     try {
       // Actualizar el estado en la base de datos
-      await this.scheduleService.updateStatusDeviceScheduleTiktok(data);
+      await this.scheduleService.updateStatusScheduleTiktokInteraction({
+        status: data.status,
+        id: data.scheduledTiktokInteraction_id,
+      });
 
       // Añadir al historial de tiktok
-      await this.historyService.create(createHistoryData);
+      await this.historyService.createTiktokInteractionHistory(
+        createHistoryData,
+      );
 
       this.server.to(room).emit('schedule:tiktok:status:notification', data);
+
+      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+      this.server.to(room).emit('schedule:tiktok:interaction:update');
     } catch (error) {
       console.error('Error al actualizar el estado', error);
     }

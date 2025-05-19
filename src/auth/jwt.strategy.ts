@@ -5,7 +5,7 @@ import { Request } from 'express';
 import { ExtractJwt, JwtFromRequestFunction, Strategy } from 'passport-jwt';
 import { JwtPayload } from './types/jwt-payload.interface';
 
-// Creamos el extractor con tipo explicito
+// Extraer el token desde la cookie
 const cookieExtractor: JwtFromRequestFunction = (
   req: Request,
 ): string | null => {
@@ -13,11 +13,18 @@ const cookieExtractor: JwtFromRequestFunction = (
   return cookies?.access_token || null;
 };
 
+// Extraer token desde el header  Authorization: Bearer TOKEN
+const headerExtractor: JwtFromRequestFunction =
+  ExtractJwt.fromAuthHeaderAsBearerToken();
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        headerExtractor, // Primero revisa si hay header comentar o borrar esto luego de las pruebas
+        cookieExtractor, // Si no, revisa cookies
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>('JWT_SECRET') || 'secreto_super_seguro',
     });

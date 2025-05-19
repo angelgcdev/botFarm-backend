@@ -22,10 +22,10 @@ import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
-  @Post()
-  create(@Body() createHistoryDto: CreateHistoryDto) {
-    return this.historyService.create(createHistoryDto);
-  }
+  // @Post()
+  // create(@Body() createHistoryDto: CreateHistoryDto) {
+  //   return this.historyService.create(createHistoryDto);
+  // }
 
   @Get()
   findAll(@Req() req: Request) {

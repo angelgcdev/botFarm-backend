@@ -9,7 +9,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { device } from './dto/device.dto';
 
 import { DeviceStatus } from '@prisma/client';
-import { last } from 'rxjs';
 
 @Injectable()
 export class DevicesService {

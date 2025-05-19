@@ -18,7 +18,9 @@ model user {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  devices device[]
+  devices                         device[]
+  scheduled_tiktok_interactions   scheduled_tiktok_interaction[]
+  scheduled_facebook_interactions scheduled_facebook_interaction[]
 }
 
 model device {
@@ -34,11 +36,9 @@ model device {
   complete_config Boolean      @default(false)
   user            user         @relation(fields: [user_id], references: [id])
 
-  google_accounts                        google_account[]
-  device_scheduled_tiktok_interactions   device_scheduled_tiktok_interaction[]
-  device_scheduled_facebook_interactions device_scheduled_facebook_interaction[]
-  tiktok_interaction_histories           tiktok_interaction_history[]
-  facebook_interaction_histories         facebook_interaction_history[]
+  google_accounts                google_account[]
+  tiktok_interaction_histories   tiktok_interaction_history[]
+  facebook_interaction_histories facebook_interaction_history[]
 }
 
 model google_account {
@@ -70,47 +70,27 @@ model social_network_account {
 }
 
 model scheduled_tiktok_interaction {
-  id          Int     @id @default(autoincrement())
+  id          Int               @id @default(autoincrement())
+  user_id     Int
   video_url   String
-  views_count Int
-  liked       Boolean @default(false)
-  saved       Boolean @default(false)
+  views_count Int               @default(0)
+  liked       Boolean           @default(false)
+  saved       Boolean           @default(false)
   comment     String?
-
-  device_scheduled_tiktok_interactions device_scheduled_tiktok_interaction[]
+  status      InteractionStatus @default(PENDIENTE)
+  user        user              @relation(fields: [user_id], references: [id])
 }
 
 model scheduled_facebook_interaction {
-  id                  Int     @id @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
+  user_id             Int
   post_url            String
-  liked               Boolean @default(false)
+  liked               Boolean           @default(false)
   comment             String?
-  shared_groups_count Int     @default(0)
-  time_between_posts  Int     @default(0)
-
-  device_scheduled_facebook_interactions device_scheduled_facebook_interaction[]
-}
-
-model device_scheduled_tiktok_interaction {
-  id                              Int               @id @default(autoincrement())
-  device_id                       Int
-  scheduled_tiktok_interaction_id Int
-  created_at                      DateTime          @default(now())
-  status                          InteractionStatus @default(PENDIENTE)
-
-  device                       device                       @relation(fields: [device_id], references: [id])
-  scheduled_tiktok_interaction scheduled_tiktok_interaction @relation(fields: [scheduled_tiktok_interaction_id], references: [id])
-}
-
-model device_scheduled_facebook_interaction {
-  id                                Int               @id @default(autoincrement())
-  device_id                         Int
-  scheduled_facebook_interaction_id Int
-  created_at                        DateTime          @default(now())
-  status                            InteractionStatus @default(PENDIENTE)
-
-  device                         device                         @relation(fields: [device_id], references: [id])
-  scheduled_facebook_interaction scheduled_facebook_interaction @relation(fields: [scheduled_facebook_interaction_id], references: [id])
+  shared_groups_count Int               @default(0)
+  time_between_posts  Int               @default(0)
+  status              InteractionStatus @default(PENDIENTE)
+  user                user              @relation(fields: [user_id], references: [id])
 }
 
 model tiktok_interaction_history {
@@ -121,11 +101,10 @@ model tiktok_interaction_history {
   liked       Boolean       @default(false)
   video_saved Boolean       @default(false)
   commented   String?
-  finished_at DateTime?     @default(now())
+  finished_at DateTime?
   video_url   String?
   status      HistoryStatus @default(FALLIDA)
-
-  device device @relation(fields: [device_id], references: [id])
+  device      device        @relation(fields: [device_id], references: [id])
 }
 
 model facebook_interaction_history {
@@ -134,10 +113,9 @@ model facebook_interaction_history {
   shared_groups_count Int           @default(0)
   liked               Boolean       @default(false)
   commented           Boolean       @default(false)
-  finished_at         DateTime?     @default(now())
+  finished_at         DateTime?
   status              HistoryStatus @default(FALLIDA)
-
-  device device @relation(fields: [device_id], references: [id])
+  device              device        @relation(fields: [device_id], references: [id])
 }
 
 enum Role {

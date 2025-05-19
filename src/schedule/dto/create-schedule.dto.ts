@@ -1,17 +1,17 @@
-import { IsBoolean, IsEmail, IsInt, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsString } from 'class-validator';
 
 export class CreateScheduleDto {
-  @IsEmail()
+  @IsString()
   video_url: string;
 
   @IsInt()
   views_count: number;
 
   @IsBoolean()
-  liked: boolean;
+  liked?: boolean;
 
   @IsBoolean()
-  saved: boolean;
+  saved?: boolean;
 
   @IsString()
   comment?: string;
