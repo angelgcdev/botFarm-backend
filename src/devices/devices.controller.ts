@@ -17,6 +17,7 @@ import { CreateDeviceDto } from './dto/create-device.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
+import { DeviceStatus } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
 @Controller('devices')
@@ -33,11 +34,11 @@ export class DevicesController {
 
   @Get()
   findAll(@Req() req: Request) {
-    const user = req.user as JwtPayload;
-    if (!user) {
+    const payload = req.user as JwtPayload;
+    if (!payload) {
       throw new UnauthorizedException();
     }
-    return this.devicesService.findAll(user.sub);
+    return this.devicesService.findAll(payload.sub);
   }
 
   //Modificar los datos del formulario del informacion adicional del dispositivo
@@ -51,18 +52,62 @@ export class DevicesController {
   completarInfo(@Param('id') id: string, @Req() req: Request) {
     const dispositivoId = Number(id);
 
-    const userId = req.user as JwtPayload;
-    if (!userId) {
+    const payload = req.user as JwtPayload;
+    if (!payload) {
       throw new UnauthorizedException();
     }
 
-    return this.devicesService.marcarComoCompleto(dispositivoId, userId.sub);
+    return this.devicesService.marcarComoCompleto(dispositivoId, payload.sub);
   }
 
   //Actualizar informacion del dispositivo
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: CreateDeviceDto) {
     return this.devicesService.update(+id, dto);
+  }
+
+  //Actualizar el estado de los dispositivos al hacer logout
+  @Patch('logout')
+  async updateAllStatus(
+    @Req() req: Request,
+    @Body() body: { status: DeviceStatus },
+  ) {
+    const user = req.user as JwtPayload;
+    if (!user.sub) {
+      throw new UnauthorizedException('No autenticado');
+    }
+
+    try {
+      const result = await this.devicesService.setAllDevicesToStatus(
+        user.sub,
+        body.status,
+      );
+
+      return {
+        success: true,
+        message: `Se actualizaron ${result.count} dispositivos al estado ${body.status}`,
+        data: {
+          updatedCount: result.count,
+        },
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error al actualizar dispositivos:', error);
+
+        return {
+          success: false,
+          message: 'Error al actualizar los dispositivos',
+          error: error.message,
+        };
+      }
+
+      //Si no es una instancia de Error, devuelve algo generico
+      return {
+        success: false,
+        message: 'Error desconocido al actualizar los dispositivos',
+        error: String(error),
+      };
+    }
   }
 
   @Delete(':id')

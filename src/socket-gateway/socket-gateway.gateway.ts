@@ -102,7 +102,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     @MessageBody()
     data: {
       scheduledTiktokInteractionData: scheduled_tiktok_interaction;
-      activeDevices: [device];
+      activeDevices: device[];
     },
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
@@ -119,11 +119,6 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       await this.scheduleService.updateStatusScheduleTiktokInteraction({
         status,
         id: data.scheduledTiktokInteractionData.id,
-      });
-
-      //Notificamos al frontend
-      this.server.to(room).emit('schedule:tiktok:status:notification', {
-        status: 'Ejecución en proceso',
       });
 
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
@@ -171,10 +166,16 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         createHistoryData,
       );
 
+      //Notificacion al frontend
       this.server.to(room).emit('schedule:tiktok:status:notification', data);
 
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
+
+      // liberar el bloqueo de las interacciones
+      this.server.to(room).emit('interaction:completed', {
+        interactionId: data.scheduledTiktokInteraction_id,
+      });
     } catch (error) {
       console.error('Error al actualizar el estado', error);
     }

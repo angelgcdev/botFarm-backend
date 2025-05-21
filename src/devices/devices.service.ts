@@ -97,6 +97,14 @@ export class DevicesService {
     });
   }
 
+  //Método para actualizar el estado de todos los dispositivos
+  setAllDevicesToStatus(user_id: number, status: DeviceStatus) {
+    return this.prisma.device.updateMany({
+      where: { user_id },
+      data: { status },
+    });
+  }
+
   async create(dto: CreateDeviceDto) {
     try {
       const { email, dispositivo_id, items } = dto;
