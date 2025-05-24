@@ -131,6 +131,61 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     }
   }
 
+  // Evento para cancelar todas la ejecuciones
+  @SubscribeMessage('cancel:tiktok:interaction')
+  async handleScheduleTiktokCancelled(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() scheduledTiktokInteraction_id: number,
+  ): Promise<void> {
+    const user_id = client.data.user_id; // Acceder al usuario_id
+    const room = `usuario_${user_id}`; //Definir la sala del usuario
+
+    try {
+      // Actualizar el estado en la base de datos
+      const status = 'CANCELADO';
+      await this.scheduleService.updateStatusScheduleTiktokInteraction({
+        status,
+        id: scheduledTiktokInteraction_id,
+      });
+
+      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+      this.server.to(room).emit('schedule:tiktok:interaction:update');
+
+      //Remitimos al servidor local
+      this.server.to(room).emit('cancel:tiktok:interaction');
+    } catch (error) {
+      console.error('Error al cancelar las interacciones', error);
+    }
+  }
+
+  // Evento para notificaciones al frontend
+  @SubscribeMessage('notification:localServer')
+  handleNotification(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      type: string;
+      message: string;
+      scheduledTiktokInteraction_id: number;
+      status: InteractionStatus;
+    },
+  ): void {
+    const user_id = client.data.user_id; // Acceder al usuario_id
+    const room = `usuario_${user_id}`; //Definir la sala del usuario
+
+    try {
+      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+      this.server.to(room).emit('schedule:tiktok:interaction:update');
+
+      this.server.to(room).emit('interaction:canceled');
+
+      //Remitimos al frontend
+      this.server.to(room).emit('notification:frontend', data);
+    } catch (error) {
+      console.error('Error al enviar la notificación', error);
+    }
+  }
+
   //Escuchar el evento "schedule:tiktok:status:update" y actualizar el estado en la base de datos
   @SubscribeMessage('schedule:tiktok:status:update')
   async handleDeviceScheduleTiktokStatusUpdate(
@@ -172,10 +227,10 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
 
-      // liberar el bloqueo de las interacciones
-      this.server.to(room).emit('interaction:completed', {
-        interactionId: data.scheduledTiktokInteraction_id,
-      });
+      // // liberar el bloqueo de las interacciones
+      // this.server.to(room).emit('interaction:completed', {
+      //   interactionId: data.scheduledTiktokInteraction_id,
+      // });
     } catch (error) {
       console.error('Error al actualizar el estado', error);
     }
