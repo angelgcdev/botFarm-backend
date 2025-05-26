@@ -72,14 +72,14 @@ export class DevicesController {
     @Req() req: Request,
     @Body() body: { status: DeviceStatus },
   ) {
-    const user = req.user as JwtPayload;
-    if (!user.sub) {
+    const payload = req.user as JwtPayload;
+    if (!payload.sub) {
       throw new UnauthorizedException('No autenticado');
     }
 
     try {
       const result = await this.devicesService.setAllDevicesToStatus(
-        user.sub,
+        payload.sub,
         body.status,
       );
 

@@ -44,7 +44,7 @@ model device {
 model google_account {
   id        Int                 @id @default(autoincrement())
   device_id Int
-  email     String              @unique
+  email     String
   status    GoogleAccountStatus @default(ACTIVO)
   device    device              @relation(fields: [device_id], references: [id])
 
