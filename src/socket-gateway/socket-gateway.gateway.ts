@@ -26,6 +26,7 @@ import { ScheduleService } from 'src/schedule/schedule.service';
 import { device } from '../devices/dto/device.dto';
 import { HistoryService } from 'src/history/history.service';
 import { CreateHistoryDto } from '../history/dto/create-history.dto';
+import { BadRequestException } from '@nestjs/common';
 
 @WebSocketGateway({ cors: true })
 export class SocketGatewayGateway implements OnGatewayConnection {
@@ -116,10 +117,13 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     try {
       // Actualizar el estado en la base de datos
       const status = 'EN_PROGRESO';
-      await this.scheduleService.updateStatusScheduleTiktokInteraction({
-        status,
-        id: data.scheduledTiktokInteractionData.id,
-      });
+      const res =
+        await this.scheduleService.updateStatusScheduleTiktokInteraction({
+          status,
+          id: data.scheduledTiktokInteractionData.id,
+        });
+
+      console.log('Estado actualizado con exito:', res);
 
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
@@ -127,7 +131,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       //Remitimos al servidor local
       this.server.to(room).emit('schedule:tiktok:execute', data);
     } catch (error) {
-      console.error('Error al ejecutar la interacción', error);
+      console.error('Error inesperado:', error.message);
     }
   }
 
@@ -143,18 +147,21 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     try {
       // Actualizar el estado en la base de datos
       const status = 'CANCELADO';
-      await this.scheduleService.updateStatusScheduleTiktokInteraction({
-        status,
-        id: scheduledTiktokInteraction_id,
-      });
+      const res =
+        await this.scheduleService.updateStatusScheduleTiktokInteraction({
+          status,
+          id: scheduledTiktokInteraction_id,
+        });
+
+      console.log(res);
 
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
 
-      //Remitimos al servidor local
+      //Emitimos al servidor local
       this.server.to(room).emit('cancel:tiktok:interaction');
     } catch (error) {
-      console.error('Error al cancelar las interacciones', error);
+      console.error(error.message);
     }
   }
 
@@ -211,15 +218,21 @@ export class SocketGatewayGateway implements OnGatewayConnection {
 
     try {
       // Actualizar el estado en la base de datos
-      await this.scheduleService.updateStatusScheduleTiktokInteraction({
-        status: data.status,
-        id: data.scheduledTiktokInteraction_id,
-      });
+      const res =
+        await this.scheduleService.updateStatusScheduleTiktokInteraction({
+          status: data.status,
+          id: data.scheduledTiktokInteraction_id,
+        });
+
+      console.log(res);
 
       // Añadir al historial de tiktok
-      await this.historyService.createTiktokInteractionHistory(
-        createHistoryData,
-      );
+      const resHistory =
+        await this.historyService.createTiktokInteractionHistory(
+          createHistoryData,
+        );
+
+      console.log(resHistory);
 
       //Notificacion al frontend
       this.server.to(room).emit('schedule:tiktok:status:notification', data);
@@ -232,7 +245,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       //   interactionId: data.scheduledTiktokInteraction_id,
       // });
     } catch (error) {
-      console.error('Error al actualizar el estado', error);
+      console.error('Error al actualizar el estado', error.message);
     }
   }
 
@@ -247,19 +260,10 @@ export class SocketGatewayGateway implements OnGatewayConnection {
 
     console.log(`dispositivo conectado recibido de Usuario ${user_id}:`, data);
 
-    //Guardar el dispositivo en la base de datos usando el servicio
     try {
+      //Guardar el dispositivo en la base de datos usando el servicio
       const res = await this.devicesService.saveDevice(data);
-      console.log(res);
-
-      if (res.status === 'exists') {
-        await this.devicesService.updateStatusAndConnectionDevice(
-          data.udid,
-          +user_id,
-          'ACTIVO',
-          new Date(), // connected_at
-        );
-      }
+      console.log('Dispositivo nuevo:', res);
 
       //Remitimos al servidor local
       this.server.to(room).emit('device:connected:notification', data.udid);
@@ -268,7 +272,28 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         status: 'ACTIVO',
       });
     } catch (error) {
-      console.error('Error al guardar el dispositivo', error);
+      if (error instanceof BadRequestException) {
+        // si ya existe Actualizar el estado del dispositivo
+        console.log('Dispositivo existente:', error.message);
+
+        const res = await this.devicesService.updateStatusAndConnectionDevice(
+          data.udid,
+          +user_id,
+          'ACTIVO',
+          new Date(), // connected_at
+        );
+
+        console.log(res);
+
+        //Remitimos al servidor local
+        this.server.to(room).emit('device:connected:notification', data.udid);
+        this.server.to(room).emit('device:connected:status', {
+          udid: data.udid,
+          status: 'ACTIVO',
+        });
+      } else {
+        console.error(error.message);
+      }
     }
   }
 
@@ -288,13 +313,15 @@ export class SocketGatewayGateway implements OnGatewayConnection {
 
     //Actualizar el estado del dispositivo en la base de datos usando el servicio
     try {
-      await this.devicesService.updateStatusAndConnectionDevice(
+      const res = await this.devicesService.updateStatusAndConnectionDevice(
         udid,
         +user_id,
         'INACTIVO',
         undefined, // connected_at
         new Date(), // last_activity
       );
+
+      console.log(res);
 
       //Remitimos al servidor local
       this.server.to(room).emit('device:disconnected:notification', udid);
@@ -303,7 +330,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         status: 'INACTIVO',
       });
     } catch (error) {
-      console.error('Error al guardar el dispositivo', error);
+      console.error(error.message);
     }
   }
 }

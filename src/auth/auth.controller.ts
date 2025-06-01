@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request } from 'express';
 
 import {
   Controller,
@@ -8,9 +8,7 @@ import {
   Patch,
   Param,
   Delete,
-  HttpException,
   HttpStatus,
-  Res,
   HttpCode,
   UseGuards,
   Req,
@@ -21,7 +19,6 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
 // import { LoginResponse } from './types/login-response.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { JwtPayload } from './types/jwt-payload.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -31,34 +28,15 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@Req() req: Request) {
-    const user = req.user as JwtPayload;
-    console.log('Cookies recibidas:', req.cookies); // 👈 esto debe mostrar `access_token`
-    console.log('User:', user);
+    const user = req.user;
+    console.log('User decifrado de Bearer token:', user);
     return { ok: true, user };
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() credentials: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<JwtPayload> {
-    const user = await this.authService.validateUser(credentials);
-
-    if (!user) {
-      throw new HttpException(
-        'Credenciales invalidas',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    //Generar y devolver el payload
-    return this.authService.login(user, res);
-  }
-
-  @Post('logout')
-  logout(@Res({ passthrough: true }) res: Response) {
-    return this.authService.logout(res);
+  async login(@Body() credentials: LoginDto) {
+    return this.authService.login(credentials);
   }
 
   @Post('register')

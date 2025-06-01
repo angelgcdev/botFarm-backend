@@ -10,7 +10,6 @@ import {
   Patch,
   Post,
   Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -32,20 +31,13 @@ export class ScheduleController {
   @Post()
   create(@Req() req: Request, @Body() createScheduleDto: CreateScheduleDto) {
     const user = req.user as JwtPayload;
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-
-    return this.scheduleService.create(createScheduleDto, user.sub);
+    return this.scheduleService.create(createScheduleDto, user.userId);
   }
 
   @Get()
   findAll(@Req() req: Request) {
     const user = req.user as JwtPayload;
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    return this.scheduleService.findAll(user.sub);
+    return this.scheduleService.findAll(user.userId);
   }
 
   @Get(':id')

@@ -10,7 +10,6 @@ import { InteractionStatus } from '@prisma/client';
 // 4. Imports relativos
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ScheduleService {
@@ -50,7 +49,7 @@ export class ScheduleService {
   }) {
     const { status, id } = data;
 
-    await this.prisma.scheduled_tiktok_interaction.update({
+    return await this.prisma.scheduled_tiktok_interaction.update({
       where: { id },
       data: { status },
     });
@@ -72,19 +71,16 @@ export class ScheduleService {
   }
 
   //eliminar datos
-  remove(id: number) {
-    try {
-      return this.prisma.scheduled_tiktok_interaction.delete({ where: { id } });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(
-          `No se encontró la interacción con ID ${id}`,
-        );
-      }
-      throw error;
+  async remove(id: number) {
+    const interaction =
+      await this.prisma.scheduled_tiktok_interaction.findUnique({
+        where: { id },
+      });
+
+    if (!interaction) {
+      throw new NotFoundException(`No se encontró la interacción con ID ${id}`);
     }
+
+    return this.prisma.scheduled_tiktok_interaction.delete({ where: { id } });
   }
 }

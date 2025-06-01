@@ -21,6 +21,15 @@ async function bootstrap() {
   //Para leer cookies el token jwt
   app.use(cookieParser());
 
-  await app.listen(process.env.PORT ?? 4000);
+  // Puerto dinámico para Railway o puerto 4000 local
+  const port = parseInt(process.env.PORT ?? '4000', 10);
+
+  await app.listen(port);
+
+  // Mensaje de servidor levantado
+  const isProduction = process.env.NODE_ENV === 'production';
+  console.log(
+    `🚀 Server listening on ${isProduction ? 'Railway port' : `http://localhost:${port}`}`,
+  );
 }
 bootstrap().catch((error) => console.error(error));

@@ -1,10 +1,8 @@
-import { Response } from 'express';
 import {
   // ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
-  Res,
 } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -12,10 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
-import { User } from './types/user.interface';
 import { Prisma } from '@prisma/client';
-// import { LoginResponse } from './types/login-response.interface';
-import { JwtPayload } from './types/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -24,8 +19,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  //Metodo para validar las credenciales del usuario
-  async validateUser(credentials: LoginDto): Promise<User> {
+  //Metodo login
+  async login(credentials: LoginDto) {
     const { email, password } = credentials;
 
     //Buscar usuario en la base de datos
@@ -33,50 +28,20 @@ export class AuthService {
       where: { email },
     });
 
-    console.log(user);
-
-    if (!user) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       throw new HttpException(
-        `Credenciales incorrectas, email no valido`,
+        `Credenciales incorrectas`,
         HttpStatus.UNAUTHORIZED,
       );
     }
 
-    //Comparar la contraseña hasheada
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new HttpException(
-        `Credenciales incorrectas, password no valido`,
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
+    const payload = { userId: user.id, email: user.email };
+    const token = this.jwtService.sign(payload, { expiresIn: '24h' });
 
-    //Si todo ok, devolvemos el usuario sin el password
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
-  }
-
-  //Metodo login
-  login(user: User, @Res({ passthrough: true }) res: Response): JwtPayload {
-    const payload: JwtPayload = { sub: user.id, email: user.email };
-    const token = this.jwtService.sign(payload);
-
-    //Establecer cookie con HttpOnly y Secure si estas en produccion
-    res.cookie('access_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', //solo en https
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 1000 * 60 * 60 * 24, // 1 dia
-    });
-
-    return payload;
-  }
-
-  //Metodo logout
-  logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token');
-    return { message: 'Sesiòn cerrada con èxito.' };
+    return {
+      user: { userId: user.id, email: user.email },
+      accessToken: token,
+    };
   }
 
   //Registro de usuario

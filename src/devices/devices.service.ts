@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -39,36 +40,22 @@ export class DevicesService {
 
   //Método para guardar el dispositivo
   async saveDevice(deviceData: device) {
-    try {
-      //Verifica si ya existe el dispositivo por su udid y el usuario_id
-      const existingDevice = await this.prisma.device.findFirst({
-        where: {
-          udid: deviceData.udid,
-          user_id: deviceData.user_id,
-        },
-      });
+    //Verifica si ya existe el dispositivo por su udid y el usuario_id
+    const existingDevice = await this.prisma.device.findFirst({
+      where: {
+        udid: deviceData.udid,
+        user_id: deviceData.user_id,
+      },
+    });
 
-      if (existingDevice) {
-        return {
-          device: existingDevice,
-          status: 'exists',
-        };
-      }
-
-      //Si no existe guardas el dispositivo en la base de datos
-      const newDevice = await this.prisma.device.create({
-        data: deviceData,
-      });
-
-      return {
-        device: newDevice,
-        status: 'created',
-      };
-    } catch (error) {
-      console.error('Error guardando el dispositivo: ', error);
-
-      throw new Error('Error al guardar el dispositivo');
+    if (existingDevice) {
+      throw new BadRequestException('El dispositivo ya existe');
     }
+
+    //Si no existe guardas el dispositivo en la base de datos
+    return await this.prisma.device.create({
+      data: deviceData,
+    });
   }
 
   //Metodo para actualizar el estado del dispositivo
@@ -105,67 +92,68 @@ export class DevicesService {
     });
   }
 
-  async create(dto: CreateDeviceDto) {
-    try {
-      const { email, dispositivo_id, items } = dto;
+  // Completar informacion del dispositivo
+  async create(infoDevice: CreateDeviceDto) {
+    const { email, dispositivo_id, items } = infoDevice;
 
-      // 1. Insertar cuenta_google
-      const googleAccount = await this.prisma.google_account.create({
-        data: {
-          device_id: dispositivo_id,
-          email,
-          status: 'ACTIVO',
+    // 1. Insertar cuenta_google
+    const googleAccount = await this.prisma.google_account.create({
+      data: {
+        device_id: dispositivo_id,
+        email,
+        status: 'ACTIVO',
+      },
+    });
+
+    //2. Buscar IDs de las reds sociales por nombre
+    const socialMedia = await this.prisma.social_network.findMany({
+      where: {
+        name: {
+          in: items,
         },
-      });
+      },
+    });
 
-      //2. Buscar IDs de las reds sociales por nombre
-      const socialNetwork = await this.prisma.social_network.findMany({
-        where: {
-          name: {
-            in: items,
-          },
-        },
-      });
-
-      //3. Crear entradas en cuenta_red_social
-      const cuentaRedes = await this.prisma.$transaction(
-        socialNetwork.map((red) =>
-          this.prisma.social_network_account.create({
-            data: {
-              social_network_id: red.id,
-              google_account_id: googleAccount.id,
-              username: null,
-              status: 'ACTIVO',
-            },
-          }),
-        ),
+    if (socialMedia.length === 0) {
+      throw new NotFoundException(
+        'No se encontraron las redes sociales proporcionadas',
       );
-
-      return {
-        status: true,
-        message: 'Dispositivo y redes sociales asociados correctamente.',
-        cuentaGoogle: googleAccount,
-        cuentaRedes,
-      };
-    } catch (error) {
-      console.log(error);
-      return {
-        status: false,
-        message:
-          'Hubo un problema al asociar las redes sociales. intenta de nuevo.',
-      };
     }
+
+    //3. Crear entradas en cuenta_red_social
+    await this.prisma.$transaction(
+      socialMedia.map((item) =>
+        this.prisma.social_network_account.create({
+          data: {
+            social_network_id: item.id,
+            google_account_id: googleAccount.id,
+            username: null,
+            status: 'ACTIVO',
+          },
+        }),
+      ),
+    );
+
+    return {
+      message: 'Dispositivo y redes sociales asociados correctamente.',
+    };
   }
 
-  findAll(user_id: number) {
-    return this.prisma.device.findMany({
+  async findAll(user_id: number) {
+    const devices = await this.prisma.device.findMany({
       where: {
         user_id,
       },
     });
+
+    if (!devices || devices.length === 0) {
+      throw new NotFoundException('No se encontraron dispositivos');
+    }
+
+    return devices;
   }
 
-  //Modificar los datos del formulario del informacion adicional del dispositivo
+  //Obtener informacion del dispositivo
   async findOne(device_id: number) {
     const googleAccount = await this.prisma.google_account.findFirst({
       where: { device_id },
@@ -179,7 +167,9 @@ export class DevicesService {
     });
 
     if (!googleAccount) {
-      return { cuentaGoogle: null };
+      throw new NotFoundException(
+        `No se encontró una cuenta Google para el dispositivo con ID ${device_id}`,
+      );
     }
 
     return {
@@ -228,7 +218,6 @@ export class DevicesService {
     );
 
     return {
-      status: true,
       message: 'Información actualizada correctamente.',
     };
   }
