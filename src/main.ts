@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,9 +16,6 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
-
-  //Para leer cookies el token jwt
-  app.use(cookieParser());
 
   // Puerto dinámico para Railway o puerto 4000 local
   const port = parseInt(process.env.PORT ?? '4000', 10);
