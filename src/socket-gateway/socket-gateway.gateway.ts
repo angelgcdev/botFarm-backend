@@ -135,6 +135,32 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     }
   }
 
+  //Escuchar evento para recibir tiempo estimado de la interaccion
+  @SubscribeMessage('schedule:tiktok:estimated_time_all')
+  handleScheduleTiktokEstimatedTimeAll(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      estimatedTime: string;
+      interactionId: number;
+    },
+  ): void {
+    const user_id = client.data.user_id; // Acceder al usuario_id
+    const room = `usuario_${user_id}`; //Definir la sala del usuario
+
+    try {
+      console.log('Tiempo estimado:', data.estimatedTime);
+
+      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+      this.server.to(room).emit('schedule:tiktok:interaction:update');
+
+      //Remitimos al servidor local
+      this.server.to(room).emit('schedule:tiktok:estimated_time_all', data);
+    } catch (error) {
+      console.error('Error inesperado:', error.message);
+    }
+  }
+
   // Evento para cancelar todas la ejecuciones
   @SubscribeMessage('cancel:tiktok:interaction')
   async handleScheduleTiktokCancelled(
@@ -211,7 +237,6 @@ export class SocketGatewayGateway implements OnGatewayConnection {
 
     const createHistoryData: CreateHistoryDto = {
       ...data.history,
-      device_id: data.activeDevice.id,
       status: data.status,
     };
     console.log('Datos de la interaccion:', data);
