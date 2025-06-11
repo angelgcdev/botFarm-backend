@@ -7,9 +7,9 @@ import {
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { device } from './dto/device.dto';
+import { Device } from './interface/device.interface';
 
-import { DeviceStatus } from '@prisma/client';
+import { DeviceStatus } from './enum/device.enum';
 
 @Injectable()
 export class DevicesService {
@@ -39,7 +39,7 @@ export class DevicesService {
   }
 
   //Método para guardar el dispositivo
-  async saveDevice(deviceData: device) {
+  async saveDevice(deviceData: Device) {
     //Verifica si ya existe el dispositivo por su udid y el usuario_id
     const existingDevice = await this.prisma.device.findFirst({
       where: {
@@ -66,6 +66,8 @@ export class DevicesService {
     connected_at?: Date,
     last_activity?: Date,
   ) {
+    console.log('AQUI:', udid);
+
     const device = await this.prisma.device.findFirst({
       where: { udid, user_id },
     });
@@ -84,7 +86,7 @@ export class DevicesService {
     });
   }
 
-  //Método para actualizar el estado de todos los dispositivos
+  //Método para actualizar el estado de todos los dispositivos de un usuario
   setAllDevicesToStatus(user_id: number, status: DeviceStatus) {
     return this.prisma.device.updateMany({
       where: { user_id },

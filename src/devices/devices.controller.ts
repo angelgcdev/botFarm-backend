@@ -16,7 +16,7 @@ import { CreateDeviceDto } from './dto/create-device.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
-import { DeviceStatus } from '@prisma/client';
+import { DeviceStatus } from './enum/device.enum';
 
 @UseGuards(JwtAuthGuard)
 @Controller('devices')

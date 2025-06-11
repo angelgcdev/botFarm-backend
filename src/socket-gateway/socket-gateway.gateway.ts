@@ -23,10 +23,11 @@ import {
 // 4. Imports relativos
 import { DevicesService } from 'src/devices/devices.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
-import { device } from '../devices/dto/device.dto';
+import { Device } from '../devices/interface/device.interface';
 import { HistoryService } from 'src/history/history.service';
 import { CreateHistoryDto } from '../history/dto/create-history.dto';
 import { BadRequestException } from '@nestjs/common';
+import { DeviceStatus } from '../devices/enum/device.enum';
 
 @WebSocketGateway({ cors: true })
 export class SocketGatewayGateway implements OnGatewayConnection {
@@ -103,7 +104,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     @MessageBody()
     data: {
       scheduledTiktokInteractionData: scheduled_tiktok_interaction;
-      activeDevices: device[];
+      activeDevices: Device[];
     },
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
@@ -278,7 +279,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   @SubscribeMessage('device:connected')
   async handleDeviceConnected(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: device,
+    @MessageBody() data: Device,
   ): Promise<void> {
     const user_id = client.data.user_id;
     const room = `usuario_${user_id}`;
@@ -294,7 +295,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       this.server.to(room).emit('device:connected:notification', data.udid);
       this.server.to(room).emit('device:connected:status', {
         udid: data.udid,
-        status: 'ACTIVO',
+        status: data.status,
       });
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -304,7 +305,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         const res = await this.devicesService.updateStatusAndConnectionDevice(
           data.udid,
           +user_id,
-          'ACTIVO',
+          data.status,
           new Date(), // connected_at
         );
 
@@ -314,7 +315,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         this.server.to(room).emit('device:connected:notification', data.udid);
         this.server.to(room).emit('device:connected:status', {
           udid: data.udid,
-          status: 'ACTIVO',
+          status: data.status,
         });
       } else {
         console.error(error.message);
@@ -326,22 +327,26 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   @SubscribeMessage('device:disconnected')
   async handleDeviceDisconnected(
     @ConnectedSocket() client: Socket,
-    @MessageBody() udid: string,
+    @MessageBody()
+    data: {
+      udid: string;
+      status: DeviceStatus;
+    },
   ): Promise<void> {
     const user_id = client.data.user_id;
     const room = `usuario_${user_id}`;
 
     console.log(
       `dispositivo desconectado recibido de Usuario ${user_id}:`,
-      udid,
+      data.udid,
     );
 
     //Actualizar el estado del dispositivo en la base de datos usando el servicio
     try {
       const res = await this.devicesService.updateStatusAndConnectionDevice(
-        udid,
+        data.udid,
         +user_id,
-        'INACTIVO',
+        data.status,
         undefined, // connected_at
         new Date(), // last_activity
       );
@@ -349,11 +354,36 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       console.log(res);
 
       //Remitimos al servidor local
-      this.server.to(room).emit('device:disconnected:notification', udid);
+      this.server.to(room).emit('device:disconnected:notification', data.udid);
       this.server.to(room).emit('device:disconnected:status', {
-        udid,
-        status: 'INACTIVO',
+        udid: data.udid,
+        status: data.status,
       });
+    } catch (error) {
+      console.error(error.message);
+    }
+  }
+
+  // Evento dispositivos actualizar estados
+  @SubscribeMessage('devices:resetStatus')
+  async handleUpdateDeviceStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() status: DeviceStatus,
+  ): Promise<void> {
+    const user_id = client.data.user_id;
+    const room = `usuario_${user_id}`;
+
+    //Actualizar el estado de los dispositivos en la base de datos usando el servicio
+    try {
+      const res = await this.devicesService.setAllDevicesToStatus(
+        +user_id,
+        status,
+      );
+
+      console.log('Reset de estado de los dispositivos:', res);
+
+      //Emitimos al frontend
+      this.server.to(room).emit('device:refresh');
     } catch (error) {
       console.error(error.message);
     }
