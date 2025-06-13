@@ -1,9 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  const prisma = new PrismaClient();
+
+  // Habilitar hooks de apagado para cerrar conexiones
+  app.enableShutdownHooks();
 
   // Prefijo para la ruta /api
   app.setGlobalPrefix('api');
@@ -27,5 +33,22 @@ async function bootstrap() {
   console.log(
     `🚀 Server listening on ${isProduction ? 'Railway port' : `http://localhost:${port}`}`,
   );
+
+  // Cerrar conexiones de Prisma al apagar la aplicación
+  process.on('SIGINT', () => {
+    void (async () => {
+      console.log('Apagando la aplicación...');
+      await prisma.$disconnect();
+      process.exit(0);
+    })();
+  });
+
+  process.on('SIGTERM', () => {
+    void (async () => {
+      console.log('Apagando la aplicación...');
+      await prisma.$disconnect();
+      process.exit(0);
+    })();
+  });
 }
 bootstrap().catch((error) => console.error(error));
