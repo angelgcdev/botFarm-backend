@@ -224,6 +224,25 @@ export class DevicesService {
     };
   }
 
+  // Metodo para obtener el device_id con el udid y el user_id
+  async findDeviceIdByUdidAndUserId(
+    udid: string,
+    user_id: number,
+  ): Promise<number> {
+    const device = await this.prisma.device.findFirst({
+      where: { udid, user_id },
+      select: { id: true },
+    });
+
+    console.log('device_id service:', device);
+
+    if (!device) {
+      throw new NotFoundException('Dispositivo no encontrado');
+    }
+
+    return device.id;
+  }
+
   remove(id: number) {
     return `This action removes a #${id} device`;
   }

@@ -34,6 +34,12 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
+  // Estado en memoria para el progreso por sala y por interacción
+  private executionProgress: Record<
+    string,
+    { total: number; completed: number }
+  > = {};
+
   constructor(
     private devicesService: DevicesService,
     private scheduleService: ScheduleService,
@@ -53,7 +59,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       console.log(
         `Cliente ${client.id} (Usuario ${usuario_id}) desconectado de la sala ${room}`,
       );
-      // // Opcional: Limpiar datos o notificar a otros clientes
+      // Opcional: Limpiar datos o notificar a otros clientes
       // this.server.to(room).emit('usuario_desconectado', { usuario_id });
     } else {
       console.log(`Cliente ${client.id} desconectado`);
@@ -102,34 +108,47 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   async handleScheduleTiktokStart(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    data: {
-      scheduledTiktokInteractionData: scheduled_tiktok_interaction;
-      activeDevices: Device[];
-    },
+    data: scheduled_tiktok_interaction,
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
     const room = `usuario_${user_id}`; //Definir la sala del usuario
+    const interactionId = data.id;
 
-    console.log(`Interacción de TikTok recibida del usuario ${user_id}:`);
+    console.log(`Interacción de TikTok recibida del usuario ${user_id}`);
     console.log('Datos del frontend:', data);
-    console.log('📹Datos del formulario:', data.scheduledTiktokInteractionData);
-    console.log('📱Dispositivos activos:', data.activeDevices);
+    console.log('📹Datos del formulario:', data);
 
     try {
+      //Guardamos el total de dispositivos para esta interaccion en esta sala
+      const key = `${room}:${interactionId}`;
+      this.executionProgress[key] = {
+        total: await this.getActiveDevicesCount(room),
+        completed: 0,
+      };
+
+      console.log('Datos del executionProgress:', this.executionProgress);
+
       // Actualizar el estado en la base de datos
       const status = 'EN_PROGRESO';
       const res =
         await this.scheduleService.updateStatusScheduleTiktokInteraction({
           status,
-          id: data.scheduledTiktokInteractionData.id,
+          id: data.id,
         });
 
       console.log('Estado actualizado con exito:', res);
 
+      //Emitimos progreso inicial
+      this.server.to(room).emit('schedule:tiktok:progress', {
+        interactionId,
+        completedDevices: this.executionProgress[key].completed,
+        totalDevices: this.executionProgress[key].total,
+      });
+
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
 
-      //Remitimos al servidor local
+      //Evento para el dispositivo movil
       this.server.to(room).emit('schedule:tiktok:execute', data);
     } catch (error) {
       console.error('Error inesperado:', error.message);
@@ -137,26 +156,35 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   }
 
   //Escuchar evento para recibir tiempo estimado de la interaccion
-  @SubscribeMessage('schedule:tiktok:estimated_time_all')
-  handleScheduleTiktokEstimatedTimeAll(
+  @SubscribeMessage('schedule:tiktok:execution_info')
+  async handleScheduleTiktokExecutionInfo(
     @ConnectedSocket() client: Socket,
     @MessageBody()
     data: {
       estimatedTime: string;
       interactionId: number;
     },
-  ): void {
+  ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
     const room = `usuario_${user_id}`; //Definir la sala del usuario
 
     try {
       console.log('Tiempo estimado:', data.estimatedTime);
 
+      // Obtener total de dispositivos activos desde Socket.IO
+      const totalDevices = await this.getActiveDevicesCount(room);
+
+      console.log('Dispositivos totales:', totalDevices);
+
       // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
       this.server.to(room).emit('schedule:tiktok:interaction:update');
 
-      //Remitimos al servidor local
-      this.server.to(room).emit('schedule:tiktok:estimated_time_all', data);
+      // Enviar info al frontend
+      this.server.to(room).emit('schedule:tiktok:execution_info', {
+        estimatedTime: data.estimatedTime,
+        totalDevices,
+        interactionId: data.interactionId,
+      });
     } catch (error) {
       console.error('Error inesperado:', error.message);
     }
@@ -226,7 +254,7 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
     @MessageBody()
     data: {
-      activeDevice: any;
+      udid: string;
       status: InteractionStatus;
       history: any;
       scheduledTiktokInteraction_id: number;
@@ -235,24 +263,31 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   ): Promise<void> {
     const user_id = client.data.user_id; // Acceder al usuario_id
     const room = `usuario_${user_id}`; //Definir la sala del usuario
+    const interactionId = data.scheduledTiktokInteraction_id;
+    const key = `${room}:${interactionId}`;
+
+    // Obtener el device_id
+    const device_id = await this.devicesService.findDeviceIdByUdidAndUserId(
+      data.udid,
+      Number(user_id),
+    );
 
     const createHistoryData: CreateHistoryDto = {
       ...data.history,
+      device_id,
       status: data.status,
     };
-    console.log('Datos de la interaccion:', data);
+
+    console.log('Informacion del historial', createHistoryData);
 
     try {
-      // Actualizar el estado en la base de datos
-      const res =
-        await this.scheduleService.updateStatusScheduleTiktokInteraction({
-          status: data.status,
-          id: data.scheduledTiktokInteraction_id,
-        });
+      // Contar progreso
+      if (!this.executionProgress[key]) {
+        console.log(`No existe tracking de progreso para ${key}`);
+        return;
+      }
 
-      console.log(res);
-
-      // Añadir al historial de tiktok
+      // Guardar en historial de tiktok
       const resHistory =
         await this.historyService.createTiktokInteractionHistory(
           createHistoryData,
@@ -260,16 +295,43 @@ export class SocketGatewayGateway implements OnGatewayConnection {
 
       console.log(resHistory);
 
-      //Notificacion al frontend
-      this.server.to(room).emit('schedule:tiktok:status:notification', data);
+      // Realizar el conteo de progreso
+      this.executionProgress[key].completed++;
+      console.log(
+        `Progreso para ${key}: ${this.executionProgress[key].completed}/${this.executionProgress[key].total}`,
+      );
 
-      // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
-      this.server.to(room).emit('schedule:tiktok:interaction:update');
+      //Emitimos progreso parcial
+      this.server.to(room).emit('schedule:tiktok:progress', {
+        interactionId,
+        completedDevices: this.executionProgress[key].completed,
+        totalDevices: this.executionProgress[key].total,
+      });
 
-      // // liberar el bloqueo de las interacciones
-      // this.server.to(room).emit('interaction:completed', {
-      //   interactionId: data.scheduledTiktokInteraction_id,
-      // });
+      // Si todos terminaron
+      if (
+        this.executionProgress[key].completed ===
+        this.executionProgress[key].total
+      ) {
+        console.log(`Todos los dispositivos completaron ${key}`);
+
+        // Actualizar el estado en la base de datos
+        const res =
+          await this.scheduleService.updateStatusScheduleTiktokInteraction({
+            status: 'COMPLETADA',
+            id: data.scheduledTiktokInteraction_id,
+          });
+
+        console.log(res);
+
+        //Notificacion al frontend
+        this.server.to(room).emit('schedule:tiktok:status:notification', data);
+
+        // Emitir al frontend para que vuelva a cargar los datos cuando llega el evento
+        this.server.to(room).emit('schedule:tiktok:interaction:update');
+
+        delete this.executionProgress[key];
+      }
     } catch (error) {
       console.error('Error al actualizar el estado', error.message);
     }
@@ -291,7 +353,6 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       const res = await this.devicesService.saveDevice(data);
       console.log('Dispositivo nuevo:', res);
 
-      //Remitimos al servidor local
       this.server.to(room).emit('device:connected:notification', data.udid);
       this.server.to(room).emit('device:connected:status', {
         udid: data.udid,
@@ -387,5 +448,11 @@ export class SocketGatewayGateway implements OnGatewayConnection {
     } catch (error) {
       console.error(error.message);
     }
+  }
+
+  // Funcion para contar dispositivos
+  private async getActiveDevicesCount(room: string): Promise<number> {
+    const sockets = await this.server.in(room).fetchSockets();
+    return sockets.length - 1;
   }
 }
