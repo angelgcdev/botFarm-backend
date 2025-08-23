@@ -60,8 +60,10 @@ export class HistoryService {
     });
   }
 
+  // Obtener historial de un usuario especifico
   async findAll(user_id: number) {
     return await this.prisma.tiktok_interaction_history.findMany({
+      orderBy: { finished_at: 'desc' },
       where: {
         device: {
           user_id,

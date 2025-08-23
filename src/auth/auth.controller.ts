@@ -19,6 +19,7 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
 // import { LoginResponse } from './types/login-response.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AdminGuard } from './admin.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -33,12 +34,22 @@ export class AuthController {
     return { ok: true, user };
   }
 
+  // Proteccion de rol administrador
+  @UseGuards(AdminGuard)
+  @Get('verificar')
+  verifyRole(@Req() req: Request) {
+    const user = req.user;
+    console.log('Rol verificado:', user);
+    return { ok: true, user };
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() credentials: LoginDto) {
     return this.authService.login(credentials);
   }
 
+  @UseGuards(AdminGuard)
   @Post('register')
   async registerUser(@Body() body: CreateAuthDto) {
     return this.authService.registerUser(body);
@@ -49,11 +60,15 @@ export class AuthController {
     return this.authService.findAllUsers();
   }
 
+  // Modificar usuarios
+  @UseGuards(AdminGuard)
   @Patch(':id')
   updateUser(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
     return this.authService.updateUser(+id, updateAuthDto);
   }
 
+  // eliminar usuario
+  @UseGuards(AdminGuard)
   @Delete(':id')
   async removeUser(@Param('id') id: string) {
     return this.authService.removeUser(+id);

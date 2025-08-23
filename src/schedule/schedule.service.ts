@@ -36,6 +36,9 @@ export class ScheduleService {
       where: {
         user_id,
       },
+      orderBy: {
+        id: 'desc',
+      },
     });
   }
 

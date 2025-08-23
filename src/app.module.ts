@@ -11,6 +11,7 @@ import { AutomationModule } from './automation/automation.module';
 import { ScheduleModule } from './schedule/schedule.module';
 
 import { ConfigModule } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     AuthModule,
@@ -24,6 +25,7 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule.forRoot({
       isGlobal: true, // Hacer que las variables de entorno estén disponibles globalmente
     }),
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

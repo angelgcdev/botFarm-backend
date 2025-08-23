@@ -1,8 +1,10 @@
 import {
+  ConflictException,
   // ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -35,11 +37,11 @@ export class AuthService {
       );
     }
 
-    const payload = { userId: user.id, email: user.email };
+    const payload = { userId: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload, { expiresIn: '24h' });
 
     return {
-      user: { userId: user.id, email: user.email },
+      user: { userId: user.id, email: user.email, role: user.role },
       accessToken: token,
     };
   }
@@ -68,13 +70,7 @@ export class AuthService {
       ) {
         throw new HttpException(`Usuario ya existe.`, HttpStatus.CONFLICT);
       }
-
-      //Manejo de errores genericos
-      console.error('Error al registrar usuario:', error);
-      throw new HttpException(
-        'Ocurrió un error al registrar el usuario, Inténtalo de nuevo más tarde',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw error;
     }
   }
 
@@ -82,46 +78,52 @@ export class AuthService {
     return this.prisma.user.findMany();
   }
 
-  async updateUser(id: number, updateAuthDto: UpdateAuthDto) {
-    //Verificar que solo el campo password esta presente
-    if (!updateAuthDto.password) {
-      throw new HttpException(
-        `Solo se permite actualizar la contraseña`,
-        HttpStatus.BAD_REQUEST,
-      );
+  // Modificar usuario
+  async updateUser(id: number, userData: UpdateAuthDto) {
+    // Verificar si el usuario existe
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
     }
 
-    //Hashear la nueva contraseña
-    const hashedPassword = await bcrypt.hash(updateAuthDto.password, 10);
+    //Validar email unico
+    if (userData.email) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          email: userData.email,
+          NOT: { id }, // excluir al mismo usuario
+        },
+      });
+      if (existing) {
+        throw new ConflictException('Correo ya existe');
+      }
+    }
 
-    const userFound = await this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        password: hashedPassword,
-      },
+    //Hashear la nueva contraseña si es que se envio
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 10);
+    } else {
+      delete userData.password;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { ...userData, updated_at: new Date() },
     });
-
-    if (!userFound) {
-      throw new HttpException(
-        `User with id ${id} not found`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    return userFound;
   }
 
-  async removeUser(id: number) {
-    const deletedUser = await this.prisma.user.delete({ where: { id } });
-
-    if (!deletedUser) {
-      throw new HttpException(
-        `Usuario con id ${id} no encontrado`,
-        HttpStatus.NOT_FOUND,
-      );
+  //Eliminar usuario
+  removeUser(id: number) {
+    try {
+      return this.prisma.user.delete({ where: { id } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+      }
+      throw error; // otros errores los dejaos que Nest los maneje como 500
     }
-    return deletedUser;
   }
 }
