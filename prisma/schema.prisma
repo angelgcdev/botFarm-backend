@@ -36,9 +36,7 @@ model device {
   complete_config Boolean      @default(false)
   user            user         @relation(fields: [user_id], references: [id])
 
-  google_accounts                google_account[]
-  tiktok_interaction_histories   tiktok_interaction_history[]
-  facebook_interaction_histories facebook_interaction_history[]
+  google_accounts google_account[]
 }
 
 model google_account {
@@ -49,6 +47,8 @@ model google_account {
   device    device              @relation(fields: [device_id], references: [id])
 
   social_network_accounts social_network_account[]
+
+  @@unique([device_id, email])
 }
 
 model social_network {
@@ -62,11 +62,18 @@ model social_network_account {
   id                Int                 @id @default(autoincrement())
   social_network_id Int
   google_account_id Int
-  username          String?
+  username          String
+  password          String?
   status            SocialAccountStatus @default(ACTIVO)
   created_at        DateTime            @default(now())
-  google_account    google_account      @relation(fields: [google_account_id], references: [id])
-  social_network    social_network      @relation(fields: [social_network_id], references: [id])
+
+  google_account google_account @relation(fields: [google_account_id], references: [id], onDelete: Cascade)
+  social_network social_network @relation(fields: [social_network_id], references: [id])
+
+  tiktok_interaction_histories   tiktok_interaction_history[]
+  facebook_interaction_histories facebook_interaction_history[]
+
+  @@unique([google_account_id, social_network_id, username])
 }
 
 model scheduled_tiktok_interaction {
@@ -94,28 +101,30 @@ model scheduled_facebook_interaction {
 }
 
 model tiktok_interaction_history {
-  id          Int           @id @default(autoincrement())
-  device_id   Int
-  username    String?
-  total_views Int           @default(0)
-  liked       Boolean       @default(false)
-  video_saved Boolean       @default(false)
-  commented   String?
-  finished_at DateTime?
-  video_url   String?
-  status      HistoryStatus @default(FALLIDA)
-  device      device        @relation(fields: [device_id], references: [id])
+  id                        Int           @id @default(autoincrement())
+  social_network_account_id Int? // Hacer opcional para permitir "huérfanos"
+  username                  String?
+  total_views               Int           @default(0)
+  liked                     Boolean       @default(false)
+  video_saved               Boolean       @default(false)
+  commented                 String?
+  finished_at               DateTime?
+  video_url                 String?
+  status                    HistoryStatus @default(FALLIDA)
+
+  social_network_account social_network_account? @relation(fields: [social_network_account_id], references: [id])
 }
 
 model facebook_interaction_history {
-  id                  Int           @id @default(autoincrement())
-  device_id           Int
-  shared_groups_count Int           @default(0)
-  liked               Boolean       @default(false)
-  commented           Boolean       @default(false)
-  finished_at         DateTime?
-  status              HistoryStatus @default(FALLIDA)
-  device              device        @relation(fields: [device_id], references: [id])
+  id                        Int           @id @default(autoincrement())
+  social_network_account_id Int? // Hacer opcional para permitir "huérfanos"
+  shared_groups_count       Int           @default(0)
+  liked                     Boolean       @default(false)
+  commented                 Boolean       @default(false)
+  finished_at               DateTime?
+  status                    HistoryStatus @default(FALLIDA)
+
+  social_network_account social_network_account? @relation(fields: [social_network_account_id], references: [id])
 }
 
 enum Role {

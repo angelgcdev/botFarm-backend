@@ -1,41 +1,120 @@
 import {
   BadRequestException,
-  ForbiddenException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateDeviceDto } from './dto/create-device.dto';
-import { UpdateDeviceDto } from './dto/update-device.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Device } from './interface/device.interface';
 
 import { DeviceStatus } from './enum/device.enum';
+import { Prisma } from '@prisma/client';
+import { UpdateDeviceAccountDto } from './dto/update-device-account.dto';
+import { CreateSocialMediaAccountDto } from './dto/create-social-media-account.dto';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { UpdateSocialAccountDto } from './dto/update-social-account.dto';
 
 @Injectable()
 export class DevicesService {
   constructor(private prisma: PrismaService) {}
 
-  //Metodo para marcar como completado el campo de la tabla dispositivos
-  async marcarComoCompleto(deviceId: number, userId: number) {
-    const device = await this.prisma.device.findUnique({
-      where: { id: deviceId },
-    });
+  // Método para actualizar la cuenta de la red social
+  async editSocialAccount(id: number, updateDto: UpdateSocialAccountDto) {
+    try {
+      const updated = await this.prisma.social_network_account.update({
+        where: { id },
+        data: updateDto,
+      });
 
-    if (!device) {
-      throw new NotFoundException('Dispositivo no encontrado');
+      return updated;
+    } catch (error) {
+      // Si no existe el registro
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Cuenta con id ${id} no encontrada`);
+      }
+      throw new BadRequestException(
+        'No se pudo actualizar la cuenta de red social',
+      );
     }
+  }
 
-    //Para validar que el dispositivo  pertenezca al usuario
-    if (device.user_id !== userId) {
-      throw new ForbiddenException('No puedes modificar este dispositivo');
+  //Eliminar cuenta de red social
+  async deleteSocialNetworkAccount(id: number) {
+    try {
+      return await this.prisma.social_network_account.delete({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        // Prisma error: Record to delete does not exist.
+        throw new NotFoundException(
+          `Cuenta de red social con ID ${id} no existe`,
+        );
+      }
+      throw error;
     }
+  }
 
-    return this.prisma.device.update({
-      where: { id: deviceId },
-      data: {
-        complete_config: true,
-      },
-    });
+  //Crear cuenta de red social
+  async addSocialMediaAccount(
+    createSocialMediaAccount: CreateSocialMediaAccountDto,
+  ) {
+    try {
+      const socialNetworkAccount =
+        await this.prisma.social_network_account.create({
+          data: {
+            ...createSocialMediaAccount,
+            status: 'ACTIVO',
+          },
+        });
+
+      return socialNetworkAccount;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Username duplicado para esta red social. Cambia el username y vuelve a intentar.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  //Obtener redes sociales
+  getSocialMediaData() {
+    return this.prisma.social_network.findMany();
+  }
+
+  // Método para actualizar el correo del dispositivo
+  async editDeviceAccount(id: number, updateDto: UpdateDeviceAccountDto) {
+    try {
+      const updated = await this.prisma.google_account.update({
+        where: { id },
+        data: { email: updateDto.email },
+      });
+
+      return updated;
+    } catch (error) {
+      // Si no existe el registro
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Cuenta con id ${id} no encontrada`);
+      }
+      throw new BadRequestException('No se pudo actualizar el correo');
+    }
   }
 
   //Método para guardar el dispositivo
@@ -95,50 +174,39 @@ export class DevicesService {
   }
 
   // Completar informacion del dispositivo
-  async create(infoDevice: CreateDeviceDto) {
-    const { email, dispositivo_id, items } = infoDevice;
+  async addDeviceAccount(data: CreateDeviceDto) {
+    const { email, device_id } = data;
 
-    // 1. Insertar cuenta_google
-    const googleAccount = await this.prisma.google_account.create({
-      data: {
-        device_id: dispositivo_id,
-        email,
-        status: 'ACTIVO',
-      },
-    });
-
-    //2. Buscar IDs de las reds sociales por nombre
-    const socialMedia = await this.prisma.social_network.findMany({
-      where: {
-        name: {
-          in: items,
+    try {
+      // 1. Añadir cuenta_google del dispositivo
+      const googleAccount = await this.prisma.google_account.create({
+        data: {
+          device_id,
+          email,
+          status: 'ACTIVO',
         },
-      },
-    });
+      });
 
-    if (socialMedia.length === 0) {
-      throw new NotFoundException(
-        'No se encontraron las redes sociales proporcionadas',
-      );
+      // //2. Marcar como completado en la tabla device
+      // await this.prisma.device.update({
+      //   where: { id: device_id },
+      //   data: {
+      //     complete_config: true,
+      //   },
+      // });
+
+      return googleAccount;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Este correo ya está registrado en este dispositivo. Intenta con otro.',
+        );
+      }
+      throw error;
     }
-
-    //3. Crear entradas en cuenta_red_social
-    await this.prisma.$transaction(
-      socialMedia.map((item) =>
-        this.prisma.social_network_account.create({
-          data: {
-            social_network_id: item.id,
-            google_account_id: googleAccount.id,
-            username: null,
-            status: 'ACTIVO',
-          },
-        }),
-      ),
-    );
-
-    return {
-      message: 'Dispositivo y redes sociales asociados correctamente.',
-    };
   }
 
   async findAll(user_id: number) {
@@ -156,73 +224,73 @@ export class DevicesService {
   }
 
   //Obtener informacion del dispositivo
-  async findOne(device_id: number) {
-    const googleAccount = await this.prisma.google_account.findFirst({
-      where: { device_id },
+  async getAccountsAndSocialMedia(device_id: number, user_id: number) {
+    const accounts = await this.prisma.google_account.findMany({
+      where: {
+        device: {
+          id: device_id,
+          user_id: user_id,
+        },
+      },
       include: {
         social_network_accounts: {
-          include: {
-            social_network: true,
-          },
+          include: { social_network: true },
         },
       },
     });
 
-    if (!googleAccount) {
+    if (!accounts) {
       throw new NotFoundException(
         `No se encontró una cuenta Google para el dispositivo con ID ${device_id}`,
       );
     }
 
-    return {
-      cuentaGoogle: googleAccount,
-      cuenta_red_social: googleAccount.social_network_accounts,
-    };
+    return accounts;
   }
 
-  //Actualizar informacion del dispositivo
-  async update(device_id: number, updateDeviceDto: UpdateDeviceDto) {
-    const cuentaGoogleExistente = await this.prisma.google_account.findFirst({
-      where: { device_id },
-    });
+  // //Actualizar informacion del dispositivo
+  // async update(device_id: number, updateDeviceDto: UpdateDeviceDto) {
+  //   const cuentaGoogleExistente = await this.prisma.google_account.findFirst({
+  //     where: { device_id },
+  //   });
 
-    if (!cuentaGoogleExistente) {
-      throw new NotFoundException('Cuenta de Google no encontrada.');
-    }
+  //   if (!cuentaGoogleExistente) {
+  //     throw new NotFoundException('Cuenta de Google no encontrada.');
+  //   }
 
-    //1. Actualizar email
-    await this.prisma.google_account.update({
-      where: { id: cuentaGoogleExistente.id },
-      data: { email: updateDeviceDto.email },
-    });
+  //   //1. Actualizar email
+  //   await this.prisma.google_account.update({
+  //     where: { id: cuentaGoogleExistente.id },
+  //     data: { email: updateDeviceDto.email },
+  //   });
 
-    //2. Eliminar redes anteriores y crear nuevas
-    await this.prisma.social_network_account.deleteMany({
-      where: { google_account_id: cuentaGoogleExistente.id },
-    });
+  //   //2. Eliminar redes anteriores y crear nuevas
+  //   await this.prisma.social_network_account.deleteMany({
+  //     where: { google_account_id: cuentaGoogleExistente.id },
+  //   });
 
-    const redes = await this.prisma.social_network.findMany({
-      where: { name: { in: updateDeviceDto.items } },
-    });
+  //   const redes = await this.prisma.social_network.findMany({
+  //     where: { name: { in: updateDeviceDto.items } },
+  //   });
 
-    //3. actualizar tabla cuenta_red_social
-    await this.prisma.$transaction(
-      redes.map((r) =>
-        this.prisma.social_network_account.create({
-          data: {
-            google_account_id: cuentaGoogleExistente.id,
-            social_network_id: r.id,
-            username: null,
-            status: 'ACTIVO',
-          },
-        }),
-      ),
-    );
+  //   //3. actualizar tabla cuenta_red_social
+  //   await this.prisma.$transaction(
+  //     redes.map((r) =>
+  //       this.prisma.social_network_account.create({
+  //         data: {
+  //           google_account_id: cuentaGoogleExistente.id,
+  //           social_network_id: r.id,
+  //           username: null,
+  //           status: 'ACTIVO',
+  //         },
+  //       }),
+  //     ),
+  //   );
 
-    return {
-      message: 'Información actualizada correctamente.',
-    };
-  }
+  //   return {
+  //     message: 'Información actualizada correctamente.',
+  //   };
+  // }
 
   // Metodo para obtener el device_id con el udid y el user_id
   async findDeviceIdByUdidAndUserId(
@@ -243,7 +311,22 @@ export class DevicesService {
     return device.id;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} device`;
+  async deleteDeviceAccount(id: number) {
+    try {
+      return await this.prisma.google_account.delete({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        // Prisma error: Record to delete does not exist.
+        throw new NotFoundException(`Google Account con ID ${id} no existe`);
+      }
+      throw error;
+    }
   }
 }

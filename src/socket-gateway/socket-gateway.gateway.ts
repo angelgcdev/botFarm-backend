@@ -23,11 +23,11 @@ import {
 // 4. Imports relativos
 import { DevicesService } from 'src/devices/devices.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
-import { Device } from '../devices/interface/device.interface';
 import { HistoryService } from 'src/history/history.service';
 import { CreateHistoryDto } from '../history/dto/create-history.dto';
 import { BadRequestException } from '@nestjs/common';
 import { DeviceStatus } from '../devices/enum/device.enum';
+import { DeviceInfo } from './types';
 
 @WebSocketGateway({ cors: true })
 export class SocketGatewayGateway implements OnGatewayConnection {
@@ -288,12 +288,12 @@ export class SocketGatewayGateway implements OnGatewayConnection {
       }
 
       // Guardar en historial de tiktok
-      const resHistory =
-        await this.historyService.createTiktokInteractionHistory(
-          createHistoryData,
-        );
+      // const resHistory =
+      //   await this.historyService.createTiktokInteractionHistory(
+      //     createHistoryData,
+      //   );
 
-      console.log(resHistory);
+      // console.log(resHistory);
 
       // Realizar el conteo de progreso
       this.executionProgress[key].completed++;
@@ -341,22 +341,25 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   @SubscribeMessage('device:connected')
   async handleDeviceConnected(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: Device,
+    @MessageBody() deviceInfo: DeviceInfo,
   ): Promise<void> {
     const user_id = client.data.user_id;
     const room = `usuario_${user_id}`;
 
-    console.log(`dispositivo conectado recibido de Usuario ${user_id}:`, data);
+    console.log(`device:connected -> ${user_id}:`, deviceInfo);
 
     try {
       //Guardar el dispositivo en la base de datos usando el servicio
-      const res = await this.devicesService.saveDevice(data);
+      const res = await this.devicesService.saveDevice(deviceInfo);
       console.log('Dispositivo nuevo:', res);
 
-      this.server.to(room).emit('device:connected:notification', data.udid);
+      this.server
+        .to(room)
+        .emit('device:connected:notification', deviceInfo.udid);
+
       this.server.to(room).emit('device:connected:status', {
-        udid: data.udid,
-        status: data.status,
+        udid: deviceInfo.udid,
+        status: deviceInfo.status,
       });
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -364,19 +367,22 @@ export class SocketGatewayGateway implements OnGatewayConnection {
         console.log('Dispositivo existente:', error.message);
 
         const res = await this.devicesService.updateStatusAndConnectionDevice(
-          data.udid,
+          deviceInfo.udid,
           +user_id,
-          data.status,
+          deviceInfo.status,
           new Date(), // connected_at
         );
 
         console.log(res);
 
         //Remitimos al servidor local
-        this.server.to(room).emit('device:connected:notification', data.udid);
+        this.server
+          .to(room)
+          .emit('device:connected:notification', deviceInfo.udid);
+
         this.server.to(room).emit('device:connected:status', {
-          udid: data.udid,
-          status: data.status,
+          udid: deviceInfo.udid,
+          status: deviceInfo.status,
         });
       } else {
         console.error(error.message);
