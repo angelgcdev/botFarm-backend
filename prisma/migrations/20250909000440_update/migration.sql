@@ -20,7 +20,7 @@ CREATE TABLE "device" (
     "connected_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "last_activity" DATETIME,
     "complete_config" BOOLEAN NOT NULL DEFAULT false,
-    CONSTRAINT "device_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "device_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -29,7 +29,7 @@ CREATE TABLE "google_account" (
     "device_id" INTEGER NOT NULL,
     "email" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'ACTIVO',
-    CONSTRAINT "google_account_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "google_account_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -43,10 +43,11 @@ CREATE TABLE "social_network_account" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "social_network_id" INTEGER NOT NULL,
     "google_account_id" INTEGER NOT NULL,
-    "username" TEXT,
+    "username" TEXT NOT NULL,
+    "password" TEXT,
     "status" TEXT NOT NULL DEFAULT 'ACTIVO',
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "social_network_account_google_account_id_fkey" FOREIGN KEY ("google_account_id") REFERENCES "google_account" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "social_network_account_google_account_id_fkey" FOREIGN KEY ("google_account_id") REFERENCES "google_account" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "social_network_account_social_network_id_fkey" FOREIGN KEY ("social_network_id") REFERENCES "social_network" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -58,8 +59,11 @@ CREATE TABLE "scheduled_tiktok_interaction" (
     "views_count" INTEGER NOT NULL DEFAULT 0,
     "liked" BOOLEAN NOT NULL DEFAULT false,
     "saved" BOOLEAN NOT NULL DEFAULT false,
+    "shared_on_facebook" BOOLEAN NOT NULL DEFAULT false,
     "comment" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDIENTE',
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" DATETIME NOT NULL,
     CONSTRAINT "scheduled_tiktok_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -68,40 +72,58 @@ CREATE TABLE "scheduled_facebook_interaction" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "user_id" INTEGER NOT NULL,
     "post_url" TEXT NOT NULL,
+    "title_post" TEXT,
     "liked" BOOLEAN NOT NULL DEFAULT false,
     "comment" TEXT,
-    "shared_groups_count" INTEGER NOT NULL DEFAULT 0,
-    "time_between_posts" INTEGER NOT NULL DEFAULT 0,
+    "share_groups_count" INTEGER NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'PENDIENTE',
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" DATETIME NOT NULL,
     CONSTRAINT "scheduled_facebook_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "tiktok_interaction_history" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "device_id" INTEGER NOT NULL,
+    "device_id" INTEGER,
     "username" TEXT,
     "total_views" INTEGER NOT NULL DEFAULT 0,
     "liked" BOOLEAN NOT NULL DEFAULT false,
     "video_saved" BOOLEAN NOT NULL DEFAULT false,
+    "shared_on_facebook" BOOLEAN NOT NULL DEFAULT false,
     "commented" TEXT,
     "finished_at" DATETIME,
     "video_url" TEXT,
     "status" TEXT NOT NULL DEFAULT 'FALLIDA',
-    CONSTRAINT "tiktok_interaction_history_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "tiktok_interaction_history_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "facebook_interaction_history" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "device_id" INTEGER NOT NULL,
-    "shared_groups_count" INTEGER NOT NULL DEFAULT 0,
+    "device_id" INTEGER,
+    "post_url" TEXT NOT NULL,
+    "title_post" TEXT,
     "liked" BOOLEAN NOT NULL DEFAULT false,
-    "commented" BOOLEAN NOT NULL DEFAULT false,
+    "comment" TEXT,
     "finished_at" DATETIME,
     "status" TEXT NOT NULL DEFAULT 'FALLIDA',
-    CONSTRAINT "facebook_interaction_history_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "facebook_interaction_history_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "facebook_shared_group" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "history_id" INTEGER NOT NULL,
+    CONSTRAINT "facebook_shared_group_history_id_fkey" FOREIGN KEY ("history_id") REFERENCES "facebook_interaction_history" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "google_account_device_id_email_key" ON "google_account"("device_id", "email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "social_network_account_google_account_id_social_network_id_username_key" ON "social_network_account"("google_account_id", "social_network_id", "username");

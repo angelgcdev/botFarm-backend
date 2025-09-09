@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { DevicesService } from './devices.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
-// import { UpdateDeviceDto } from './dto/update-device.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
@@ -19,11 +18,18 @@ import { DeviceStatus } from './enum/device.enum';
 import { UpdateDeviceAccountDto } from './dto/update-device-account.dto';
 import { CreateSocialMediaAccountDto } from './dto/create-social-media-account.dto';
 import { UpdateSocialAccountDto } from './dto/update-social-account.dto';
+import { CompleteConfig } from './dto/complete-config.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('devices')
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}
+
+  //Actualizar en la tabla devices -> complete_config
+  @Patch('complete-config/:id')
+  updateCompleteConfig(@Param('id') id: string, @Body() body: CompleteConfig) {
+    return this.devicesService.updateCompleteConfig(+id, body);
+  }
 
   //Actualizar cuenta de red social
   @Patch('edit-social-account/:id')
@@ -69,10 +75,11 @@ export class DevicesController {
     return this.devicesService.addDeviceAccount(createDeviceDto);
   }
 
+  // Obtener datos "device → google_accounts → social_network_accounts"
   @Get()
-  async findAll(@Req() req: Request) {
+  async getAllDevicesWithConfig(@Req() req: Request) {
     const payload = req.user as JwtPayload;
-    return await this.devicesService.findAll(payload.userId);
+    return await this.devicesService.getAllDevicesWithConfig(payload.userId);
   }
 
   //Obtener los emails y redes sociales del dispositivo

@@ -14,10 +14,34 @@ import { UpdateDeviceAccountDto } from './dto/update-device-account.dto';
 import { CreateSocialMediaAccountDto } from './dto/create-social-media-account.dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { UpdateSocialAccountDto } from './dto/update-social-account.dto';
+import { CompleteConfig } from './dto/complete-config.dto';
 
 @Injectable()
 export class DevicesService {
   constructor(private prisma: PrismaService) {}
+
+  // Método para actualizar la cuenta de la red social
+  async updateCompleteConfig(id: number, updateDto: CompleteConfig) {
+    try {
+      const updated = await this.prisma.device.update({
+        where: { id },
+        data: updateDto,
+      });
+
+      return updated;
+    } catch (error) {
+      // Si no existe el registro
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Dispositivo con id ${id} no encontrada`);
+      }
+      throw new BadRequestException(
+        'No se pudo actualizar la cuenta de red social',
+      );
+    }
+  }
 
   // Método para actualizar la cuenta de la red social
   async editSocialAccount(id: number, updateDto: UpdateSocialAccountDto) {
@@ -209,14 +233,62 @@ export class DevicesService {
     }
   }
 
-  async findAll(user_id: number) {
-    const devices = await this.prisma.device.findMany({
-      where: {
-        user_id,
-      },
+  //actualizar los datos antes de Obtener datos "device → google_accounts → social_network_accounts"
+  async getAllDevicesWithConfig(user_id: number) {
+    const devices = await this.prisma.$transaction(async (tx) => {
+      // 1. Buscar dispositivos del usuario que cumplen la condición
+      const completeDevices = await tx.device.findMany({
+        where: {
+          user_id,
+          google_accounts: {
+            some: {
+              social_network_accounts: {
+                some: {}, //al menos una red social registrada
+              },
+            },
+          },
+        },
+      });
+
+      const completeIds = completeDevices.map((d) => d.id);
+
+      //2. Actualizar solo con los dispositivos obtenidos en completeIds
+      await tx.device.updateMany({
+        where: { id: { in: completeIds }, user_id },
+        data: { complete_config: true },
+      });
+
+      // 3. Los demás -> false
+      await tx.device.updateMany({
+        where: { id: { notIn: completeIds }, user_id },
+        data: { complete_config: false },
+      });
+
+      //4. Retornar todos los dispositivos con las relaciones anidadas
+      return await tx.device.findMany({
+        where: {
+          user_id,
+        },
+        include: {
+          google_accounts: {
+            include: {
+              social_network_accounts: {
+                select: {
+                  id: true,
+                  social_network_id: true,
+                  google_account_id: true,
+                  username: true,
+                  status: true,
+                  created_at: true,
+                },
+              },
+            },
+          },
+        },
+      });
     });
 
-    if (!devices || devices.length === 0) {
+    if (devices.length === 0) {
       throw new NotFoundException('No se encontraron dispositivos');
     }
 
@@ -247,50 +319,6 @@ export class DevicesService {
 
     return accounts;
   }
-
-  // //Actualizar informacion del dispositivo
-  // async update(device_id: number, updateDeviceDto: UpdateDeviceDto) {
-  //   const cuentaGoogleExistente = await this.prisma.google_account.findFirst({
-  //     where: { device_id },
-  //   });
-
-  //   if (!cuentaGoogleExistente) {
-  //     throw new NotFoundException('Cuenta de Google no encontrada.');
-  //   }
-
-  //   //1. Actualizar email
-  //   await this.prisma.google_account.update({
-  //     where: { id: cuentaGoogleExistente.id },
-  //     data: { email: updateDeviceDto.email },
-  //   });
-
-  //   //2. Eliminar redes anteriores y crear nuevas
-  //   await this.prisma.social_network_account.deleteMany({
-  //     where: { google_account_id: cuentaGoogleExistente.id },
-  //   });
-
-  //   const redes = await this.prisma.social_network.findMany({
-  //     where: { name: { in: updateDeviceDto.items } },
-  //   });
-
-  //   //3. actualizar tabla cuenta_red_social
-  //   await this.prisma.$transaction(
-  //     redes.map((r) =>
-  //       this.prisma.social_network_account.create({
-  //         data: {
-  //           google_account_id: cuentaGoogleExistente.id,
-  //           social_network_id: r.id,
-  //           username: null,
-  //           status: 'ACTIVO',
-  //         },
-  //       }),
-  //     ),
-  //   );
-
-  //   return {
-  //     message: 'Información actualizada correctamente.',
-  //   };
-  // }
 
   // Metodo para obtener el device_id con el udid y el user_id
   async findDeviceIdByUdidAndUserId(

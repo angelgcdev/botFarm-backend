@@ -13,6 +13,9 @@ export class CreateScheduleDto {
   @IsBoolean()
   saved?: boolean;
 
+  @IsBoolean()
+  shared_on_facebook?: boolean;
+
   @IsString()
   comment?: string;
 }
