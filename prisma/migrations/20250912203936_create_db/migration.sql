@@ -64,7 +64,7 @@ CREATE TABLE "scheduled_tiktok_interaction" (
     "status" TEXT NOT NULL DEFAULT 'PENDIENTE',
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,
-    CONSTRAINT "scheduled_tiktok_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "scheduled_tiktok_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -79,7 +79,7 @@ CREATE TABLE "scheduled_facebook_interaction" (
     "status" TEXT NOT NULL DEFAULT 'PENDIENTE',
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,
-    CONSTRAINT "scheduled_facebook_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "scheduled_facebook_interaction_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -116,7 +116,34 @@ CREATE TABLE "facebook_shared_group" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
     "history_id" INTEGER NOT NULL,
-    CONSTRAINT "facebook_shared_group_history_id_fkey" FOREIGN KEY ("history_id") REFERENCES "facebook_interaction_history" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "facebook_shared_group_history_id_fkey" FOREIGN KEY ("history_id") REFERENCES "facebook_interaction_history" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "client" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "user_id" INTEGER,
+    "name" TEXT,
+    "ci" TEXT NOT NULL,
+    "phone" TEXT,
+    "email" TEXT,
+    "city" TEXT,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "client_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "sale" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "client_id" INTEGER,
+    "user_id" INTEGER,
+    "total" REAL,
+    "client_origin" TEXT NOT NULL,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" DATETIME NOT NULL,
+    CONSTRAINT "sale_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "client" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "sale_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateIndex
@@ -127,3 +154,6 @@ CREATE UNIQUE INDEX "google_account_device_id_email_key" ON "google_account"("de
 
 -- CreateIndex
 CREATE UNIQUE INDEX "social_network_account_google_account_id_social_network_id_username_key" ON "social_network_account"("google_account_id", "social_network_id", "username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "client_ci_key" ON "client"("ci");

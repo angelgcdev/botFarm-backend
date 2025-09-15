@@ -82,7 +82,35 @@ export class HistoryService {
     });
   }
 
-  // Obtener historial de un usuario especifico
+  // Obtener historial de Facebook de un usuario especifico
+  async getFacebookHistory(user_id: number) {
+    return await this.prisma.facebook_interaction_history.findMany({
+      where: {
+        device: {
+          user_id: user_id,
+        },
+      },
+      orderBy: {
+        finished_at: 'desc',
+      },
+      include: {
+        device: {
+          // incluir info del dispositivo
+          select: {
+            id: true,
+            udid: true,
+            device_type: true,
+            status: true,
+            os_version: true,
+            brand: true,
+          },
+        },
+        facebook_shared_groups: true,
+      },
+    });
+  }
+
+  // Obtener historial de Tiktok de un usuario especifico
   async getTiktokHistory(user_id: number) {
     return await this.prisma.tiktok_interaction_history.findMany({
       where: {

@@ -21,6 +21,8 @@ model user {
   devices                         device[]
   scheduled_tiktok_interactions   scheduled_tiktok_interaction[]
   scheduled_facebook_interactions scheduled_facebook_interaction[]
+  clients                         client[]
+  sales                           sale[]
 }
 
 model device {
@@ -89,7 +91,7 @@ model scheduled_tiktok_interaction {
   created_at         DateTime          @default(now())
   updated_at         DateTime          @updatedAt
 
-  user user @relation(fields: [user_id], references: [id])
+  user user @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model scheduled_facebook_interaction {
@@ -104,7 +106,7 @@ model scheduled_facebook_interaction {
   created_at         DateTime          @default(now())
   updated_at         DateTime          @updatedAt
 
-  user user @relation(fields: [user_id], references: [id])
+  user user @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model tiktok_interaction_history {
@@ -141,7 +143,42 @@ model facebook_shared_group {
   id                           Int                          @id @default(autoincrement())
   name                         String
   history_id                   Int
-  facebook_interaction_history facebook_interaction_history @relation(fields: [history_id], references: [id])
+  facebook_interaction_history facebook_interaction_history @relation(fields: [history_id], references: [id], onDelete: Cascade)
+}
+
+model client {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?
+  name       String?
+  ci         String   @unique
+  phone      String?
+  email      String?
+  city       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  user  user?  @relation(fields: [user_id], references: [id])
+  sales sale[]
+}
+
+model sale {
+  id            Int          @id @default(autoincrement())
+  client_id     Int? // Hacer opcional para permitir "huérfanos"
+  user_id       Int? // permitir "huérfanos"
+  total         Float?
+  client_origin ClientOrigin
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+
+  client client? @relation(fields: [client_id], references: [id])
+  user   user?   @relation(fields: [user_id], references: [id])
+}
+
+enum ClientOrigin {
+  TIKTOK
+  FACEBOOK
+  RECOMENDACION
+  OTRO
 }
 
 enum Role {

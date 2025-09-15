@@ -12,6 +12,8 @@ import { ScheduleModule } from './schedule/schedule.module';
 
 import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
+import { ClientesVentasModule } from './clientes-ventas/clientes-ventas.module';
+import { DashboardAdminModule } from './dashboard-admin/dashboard-admin.module';
 @Module({
   imports: [
     AuthModule,
@@ -26,6 +28,8 @@ import { AdminModule } from './admin/admin.module';
       isGlobal: true, // Hacer que las variables de entorno estén disponibles globalmente
     }),
     AdminModule,
+    ClientesVentasModule,
+    DashboardAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

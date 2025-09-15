@@ -31,7 +31,11 @@ import { DeviceInfo } from './types';
 import { FacebookInteractionDto } from 'src/schedule/dto/facebook-interaction.dto';
 import { CreateHistoryFacebookDto } from 'src/history/dto/create-history-facebook.dto';
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({
+  transports: ['websocket'],
+  pingInterval: 10000,
+  pingTimeout: 5000,
+})
 export class SocketGatewayGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
@@ -540,6 +544,13 @@ export class SocketGatewayGateway implements OnGatewayConnection {
   ): Promise<void> {
     const user_id = client.data.user_id;
     const room = `usuario_${user_id}`;
+
+    if (!user_id) {
+      console.error(
+        'Socket no tiene user_id, no se puede guardar el dispositivo.',
+      );
+      return;
+    }
 
     console.log(`device:connected -> ${user_id}:`, deviceInfo);
 

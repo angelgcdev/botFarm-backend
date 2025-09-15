@@ -44,7 +44,18 @@ export class HistoryController {
     return await this.historyService.tiktokInteractionsCount(payload.userId);
   }
 
-  // Obtener informacion para el historial de interacciones
+  // Obtener informacion para el historial de interacciones de Facebook
+  @Get('facebook-history')
+  getFacebookHistory(@Req() req: Request) {
+    const payload = req.user as JwtPayload;
+
+    if (!payload) {
+      throw new UnauthorizedException();
+    }
+    return this.historyService.getFacebookHistory(payload.userId);
+  }
+
+  // Obtener informacion para el historial de interacciones de Tiktok
   @Get()
   getTiktokHistory(@Req() req: Request) {
     const payload = req.user as JwtPayload;

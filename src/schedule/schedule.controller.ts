@@ -23,7 +23,7 @@ import { ScheduleService } from './schedule.service';
 import { Request } from 'express';
 import { JwtPayload } from 'src/auth/types/jwt-payload.interface';
 import { CreateScheduleFacebookDto } from './dto/create-schedule-facebook.dto';
-import { UpdateScheduledFacebookDto } from './dto/update-schedule-facebook.dto';
+import { UpdateScheduleFacebookDto } from './dto/update-schedule-facebook.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('schedule')
@@ -64,7 +64,7 @@ export class ScheduleController {
   @Patch('facebook-post-edit/:id')
   editInteractionFacebookData(
     @Param('id') id: string,
-    @Body() updateScheduledFacebookDto: UpdateScheduledFacebookDto,
+    @Body() updateScheduledFacebookDto: UpdateScheduleFacebookDto,
   ) {
     return this.scheduleService.editInteractionFacebookData(
       +id,
