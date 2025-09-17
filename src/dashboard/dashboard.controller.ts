@@ -8,6 +8,7 @@ import {
   Delete,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 // import { CreateDashboardDto } from './dto/create-dashboard.dto';
@@ -64,6 +65,30 @@ export class DashboardController {
     return this.dashboardService.getTotalTiktokSharesForPersonal(
       payload.userId,
     );
+  }
+
+  @Get('total-clients-for-day')
+  getTotalClientsForDay(
+    @Req() req: Request,
+    @Query('range') range: '7d' | '30d' | '90d',
+  ) {
+    const payload = req.user as JwtPayload;
+    return this.dashboardService.getTotalClientsForDay(payload.userId, range);
+  }
+
+  @Get('total-sales-for-day')
+  getTotalSalesForDay(
+    @Req() req: Request,
+    @Query('range') range: '7d' | '30d' | '90d',
+  ) {
+    const payload = req.user as JwtPayload;
+    return this.dashboardService.getTotalSalesForDay(payload.userId, range);
+  }
+
+  @Get('total-origin-clients')
+  getOriginClients(@Req() req: Request) {
+    const payload = req.user as JwtPayload;
+    return this.dashboardService.getOriginClients(payload.userId);
   }
 
   @Get()

@@ -13,13 +13,13 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { AdminGuard } from 'src/auth/admin.guard';
 
+@UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   // Obtener todos los usuarios
   @Get('users')
-  @UseGuards(AdminGuard)
   getUsers() {
     return this.adminService.getUsers();
   }
